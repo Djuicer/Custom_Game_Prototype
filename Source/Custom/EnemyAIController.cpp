@@ -3,8 +3,7 @@
 #include "NavigationSystem.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
-#include "Engine/DamageEvents.h"
-#include "Variant_Shooter/ShooterCharacter.h"
+#include "Kismet/GameplayStatics.h"
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -59,14 +58,20 @@ void AEnemyAIController::BeginPlay()
 void AEnemyAIController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
-	if (TargetPlayer && BlackboardComponent)
+
+	if (TargetPlayer && BlackboardComponent && GetPawn())
 	{
 		BlackboardComponent->SetValueAsVector(
-			TEXT("PlayerPosition"), 
+			TEXT("PlayerPosition"),
 			TargetPlayer->GetActorLocation()
 		);
-		
+
+		const float DistanceToPlayer = FVector::Dist(GetPawn()->GetActorLocation(), TargetPlayer->GetActorLocation());
+		BlackboardComponent->SetValueAsBool(TEXT("AttackPlayer"), DistanceToPlayer <= AttackRange);
+	}
+	else if (BlackboardComponent)
+	{
+		BlackboardComponent->SetValueAsBool(TEXT("AttackPlayer"), false);
 	}
 }
 
@@ -119,14 +124,7 @@ void AEnemyAIController::AttackPlayer()
 		return;
 	}
 
-	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(TargetPlayer);
-	if (!ShooterCharacter)
-	{
-		return;
-	}
-
 	StopMovement();
-	FDamageEvent DamageEvent;
-	ShooterCharacter->TakeDamage(AttackDamage, DamageEvent, this, GetPawn());
+	UGameplayStatics::ApplyDamage(TargetPlayer, AttackDamage, this, GetPawn(), UDamageType::StaticClass());
 	LastAttackTime = CurrentTime;
 }
