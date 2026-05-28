@@ -5,6 +5,7 @@
 #include "EnemyAIController.h"
 
 #include "Engine/DamageEvents.h"
+#include "Kismet/GameplayStatics.h"
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -102,17 +103,24 @@ void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 
 void AEnemyAIController::AttackPlayer()
 {
-	if (!TargetPlayer)
+	if (!TargetPlayer || !GetPawn())
 	{
 		return;
 	}
 
-	FDamageEvent DamageEvent;
+	const float DistanceToPlayer = FVector::Dist(GetPawn()->GetActorLocation(), TargetPlayer->GetActorLocation());
+	if (DistanceToPlayer > AttackRange)
+	{
+		return;
+	}
 
-	TargetPlayer->TakeDamage(
-		Damage,
-		DamageEvent,
-		this,
-		GetPawn()
-	);
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	if (CurrentTime - LastAttackTime < AttackCooldown)
+	{
+		return;
+	}
+
+	StopMovement();
+	UGameplayStatics::ApplyDamage(TargetPlayer, AttackDamage, this, GetPawn(), UDamageType::StaticClass());
+	LastAttackTime = CurrentTime;
 }
