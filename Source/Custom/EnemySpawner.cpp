@@ -67,6 +67,7 @@ void AEnemySpawner::TrySpawnWave()
 
 		if (ACharacter* SpawnedEnemy = GetWorld()->SpawnActor<ACharacter>(EnemyClass, SpawnTransform, SpawnParams))
 		{
+			SpawnedEnemy->SpawnDefaultController();
 			AliveEnemies.Add(SpawnedEnemy);
 		}
 	}

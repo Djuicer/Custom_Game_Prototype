@@ -31,22 +31,40 @@ AEnemyAIController::AEnemyAIController()
 	GetPerceptionComponent()->ConfigureSense(*SightConfiguration);
 }
 
-void AEnemyAIController::BeginPlay()
+
+void AEnemyAIController::OnPossess(APawn* InPawn)
 {
-	Super::BeginPlay();
-	
-	NavigationSystem = Cast<UNavigationSystemV1>(GetWorld()->GetNavigationSystem());
-	
+	Super::OnPossess(InPawn);
+	InitializeBehavior();
+	AssignPlayerTarget();
+}
+
+void AEnemyAIController::InitializeBehavior()
+{
+	if (!AIBlackboard || !BehaviourTree)
+	{
+		return;
+	}
+
 	UseBlackboard(AIBlackboard, BlackboardComponent);
 	RunBehaviorTree(BehaviourTree);
-	
+
 	if (BlackboardComponent)
 	{
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsBool(TEXT("HoldsShield"), false);
 		BlackboardComponent->SetValueAsBool(TEXT("AttackPlayer"), false);
 	}
-	
+}
+
+void AEnemyAIController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	NavigationSystem = Cast<UNavigationSystemV1>(GetWorld()->GetNavigationSystem());
+
+	InitializeBehavior();
+
 	if (GetPerceptionComponent())
 	{
 		GetPerceptionComponent()->OnPerceptionUpdated.AddDynamic(
@@ -61,7 +79,7 @@ void AEnemyAIController::BeginPlay()
 void AEnemyAIController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
+
 	if (!TargetPlayer)
 	{
 		AssignPlayerTarget();
@@ -72,7 +90,7 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
 		BlackboardComponent->SetValueAsVector(
-			TEXT("PlayerPosition"), 
+			TEXT("PlayerPosition"),
 			TargetPlayer->GetActorLocation()
 		);
 	}
@@ -94,7 +112,7 @@ void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
 		BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), TargetPlayer->GetActorLocation());
 	}
-	
+
 }
 
 void AEnemyAIController::AttackPlayer()
