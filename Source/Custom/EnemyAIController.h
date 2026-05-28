@@ -30,6 +30,9 @@ public:
 	
 	UFUNCTION()
 	void AttackPlayer();
+
+private:
+	void AssignPlayerTarget();
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Damage")
