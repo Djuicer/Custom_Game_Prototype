@@ -5,7 +5,7 @@
 #include "EnemyAIController.h"
 
 #include "Engine/DamageEvents.h"
-#include "Kismet/GameplayStatics.h"
+#include "Variant_Shooter/ShooterCharacter.h"
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -120,7 +120,14 @@ void AEnemyAIController::AttackPlayer()
 		return;
 	}
 
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(TargetPlayer);
+	if (!ShooterCharacter)
+	{
+		return;
+	}
+
 	StopMovement();
-	UGameplayStatics::ApplyDamage(TargetPlayer, AttackDamage, this, GetPawn(), UDamageType::StaticClass());
+	FDamageEvent DamageEvent;
+	ShooterCharacter->TakeDamage(AttackDamage, DamageEvent, this, GetPawn());
 	LastAttackTime = CurrentTime;
 }
