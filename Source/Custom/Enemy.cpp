@@ -3,6 +3,8 @@
 
 #include "Enemy.h"
 
+#include "BrainComponent.h"
+#include "EnemyAIController.h"
 #include "Components/CapsuleComponent.h"
 
 // Sets default values
@@ -17,6 +19,7 @@ AEnemy::AEnemy()
 
 void AEnemy::Ragdoll()
 {
+	// Cast<AEnemyAIController>(GetController())->BrainComponent->PauseLogic("Ragdolling");
 	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
 	GetMesh()->SetSimulatePhysics(true);
 
