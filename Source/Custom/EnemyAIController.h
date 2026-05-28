@@ -35,6 +35,7 @@ public:
 private:
 	void InitializeBehavior();
 	void AssignPlayerTarget();
+	void UpdatePlayerChasePosition();
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Damage")
@@ -67,6 +68,9 @@ protected:
 	UNavigationSystemV1* NavigationSystem;
 	UPROPERTY()
 	APawn* TargetPlayer;
+
+	FVector LastValidPlayerGroundPosition = FVector::ZeroVector;
+	bool bHasLastValidPlayerGroundPosition = false;
 
 	float LastAttackTime = -FLT_MAX;
 	

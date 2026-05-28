@@ -89,10 +89,7 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 	{
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
-		BlackboardComponent->SetValueAsVector(
-			TEXT("PlayerPosition"),
-			TargetPlayer->GetActorLocation()
-		);
+		UpdatePlayerChasePosition();
 	}
 }
 
@@ -110,7 +107,7 @@ void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 	{
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
-		BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), TargetPlayer->GetActorLocation());
+		UpdatePlayerChasePosition();
 	}
 
 }
@@ -155,7 +152,39 @@ void AEnemyAIController::AssignPlayerTarget()
 		{
 			BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 			BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
-			BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), TargetPlayer->GetActorLocation());
+			UpdatePlayerChasePosition();
 		}
+	}
+}
+
+void AEnemyAIController::UpdatePlayerChasePosition()
+{
+	if (!TargetPlayer || !BlackboardComponent)
+	{
+		return;
+	}
+
+	const FVector PlayerLocation = TargetPlayer->GetActorLocation();
+
+	FNavLocation ProjectedLocation;
+	const bool bProjected = NavigationSystem && NavigationSystem->ProjectPointToNavigation(
+		PlayerLocation,
+		ProjectedLocation,
+		FVector(500.0f, 500.0f, 2000.0f)
+	);
+
+	if (bProjected)
+	{
+		LastValidPlayerGroundPosition = ProjectedLocation.Location;
+		bHasLastValidPlayerGroundPosition = true;
+	}
+
+	if (bHasLastValidPlayerGroundPosition)
+	{
+		BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), LastValidPlayerGroundPosition);
+	}
+	else
+	{
+		BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), PlayerLocation);
 	}
 }
