@@ -4,7 +4,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 
 #include "Engine/DamageEvents.h"
-#include "Variant_Shooter/ShooterCharacter.h"
+#include "Kismet/GameplayStatics.h"
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -42,7 +42,7 @@ void AEnemyAIController::BeginPlay()
 	
 	if (BlackboardComponent)
 	{
-		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), false);
+		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsBool(TEXT("HoldsShield"), false);
 		BlackboardComponent->SetValueAsBool(TEXT("AttackPlayer"), false);
 	}
@@ -54,19 +54,27 @@ void AEnemyAIController::BeginPlay()
 			&AEnemyAIController::OnSensesUpdated
 		);
 	}
+
+	AssignPlayerTarget();
 }
 
 void AEnemyAIController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	
+	if (!TargetPlayer)
+	{
+		AssignPlayerTarget();
+	}
+
 	if (TargetPlayer && BlackboardComponent)
 	{
+		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
+		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
 		BlackboardComponent->SetValueAsVector(
 			TEXT("PlayerPosition"), 
 			TargetPlayer->GetActorLocation()
 		);
-		
 	}
 }
 
@@ -78,24 +86,13 @@ void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 		return;
 	}
 
-	TargetPlayer = nullptr;
-	BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), false);
+	AssignPlayerTarget();
 
-	for (AActor* Actor : UpdatedActors)
+	if (TargetPlayer)
 	{
-		if (APawn* SensedPawn = Cast<APawn>(Actor))
-		{
-			if (SensedPawn->IsPlayerControlled())
-			{
-				TargetPlayer = SensedPawn;
-
-				BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
-				BlackboardComponent->SetValueAsVector(
-					TEXT("PlayerPosition"),
-					TargetPlayer->GetActorLocation()
-				);
-			}
-		}
+		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
+		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
+		BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), TargetPlayer->GetActorLocation());
 	}
 	
 }
@@ -119,14 +116,28 @@ void AEnemyAIController::AttackPlayer()
 		return;
 	}
 
-	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(TargetPlayer);
-	if (!ShooterCharacter)
+	StopMovement();
+	FDamageEvent DamageEvent;
+	TargetPlayer->TakeDamage(AttackDamage, DamageEvent, this, GetPawn());
+	LastAttackTime = CurrentTime;
+}
+
+void AEnemyAIController::AssignPlayerTarget()
+{
+	if (!GetWorld())
 	{
 		return;
 	}
 
-	StopMovement();
-	FDamageEvent DamageEvent;
-	ShooterCharacter->TakeDamage(AttackDamage, DamageEvent, this, GetPawn());
-	LastAttackTime = CurrentTime;
+	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	{
+		TargetPlayer = PlayerPawn;
+
+		if (BlackboardComponent)
+		{
+			BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
+			BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
+			BlackboardComponent->SetValueAsVector(TEXT("PlayerPosition"), TargetPlayer->GetActorLocation());
+		}
+	}
 }

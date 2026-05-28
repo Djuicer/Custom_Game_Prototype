@@ -30,13 +30,16 @@ public:
 	
 	UFUNCTION()
 	void AttackPlayer();
+
+private:
+	void AssignPlayerTarget();
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Damage")
 	float AttackDamage = 10.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Attack")
-	float AttackRange = 150.0f;
+	float AttackRange = 200.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Attack")
 	float AttackCooldown = 1.0f;
