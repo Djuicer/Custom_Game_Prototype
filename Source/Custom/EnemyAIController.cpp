@@ -1,8 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
+#include "EnemyAIController.h"
 #include "NavigationSystem.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "EnemyAIController.h"
 
 #include "Engine/DamageEvents.h"
 #include "Variant_Shooter/ShooterCharacter.h"
