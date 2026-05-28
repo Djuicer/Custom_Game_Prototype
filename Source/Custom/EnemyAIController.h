@@ -24,6 +24,7 @@ public:
 	AEnemyAIController();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void OnPossess(APawn* InPawn) override;
 	
 	UFUNCTION()
 	void OnSensesUpdated(const TArray<AActor*>& UpdatedActors);
@@ -32,6 +33,7 @@ public:
 	void AttackPlayer();
 
 private:
+	void InitializeBehavior();
 	void AssignPlayerTarget();
 	
 protected:
