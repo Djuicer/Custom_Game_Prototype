@@ -5,6 +5,7 @@
 #include "EnemySpawner.generated.h"
 
 class ACharacter;
+class AActor;
 
 UCLASS(Blueprintable)
 class CUSTOM_API AEnemySpawner : public AActor
@@ -26,6 +27,18 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Timing", meta = (ClampMin = "0.0"))
 	float InitialSpawnDelay = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Waves", meta = (ClampMin = "1"))
+	int32 StartingEnemiesPerWave = 15;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Waves", meta = (ClampMin = "0"))
+	int32 EnemiesAddedPerWave = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Waves", meta = (ClampMin = "0.0"))
+	float TimeBetweenWaves = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Waves", meta = (ClampMin = "1"))
+	int32 CurrentWave = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Limits", meta = (ClampMin = "1"))
 	int32 MaxAliveEnemies = 12;
@@ -53,7 +66,15 @@ protected:
 
 private:
 	FTimerHandle SpawnTimerHandle;
+	FTimerHandle NextWaveTimerHandle;
 	TArray<TWeakObjectPtr<ACharacter>> AliveEnemies;
+	int32 EnemiesSpawnedThisWave = 0;
+	int32 EnemiesRequiredThisWave = 0;
+
+	void StartWave();
+	void CheckWaveComplete();
+	UFUNCTION()
+	void HandleSpawnedEnemyDestroyed(AActor* DestroyedActor);
 
 	void TrySpawnWave();
 	void CleanupDeadEnemies();
