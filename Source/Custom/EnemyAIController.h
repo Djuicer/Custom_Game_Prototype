@@ -33,7 +33,13 @@ public:
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Damage")
-	float Damage = 25.0f;
+	float AttackDamage = 10.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Attack")
+	float AttackRange = 150.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Attack")
+	float AttackCooldown = 1.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Sight")
 	float SightAge = 5.0f;
@@ -56,6 +62,8 @@ protected:
 	UNavigationSystemV1* NavigationSystem;
 	UPROPERTY()
 	APawn* TargetPlayer;
+
+	float LastAttackTime = -FLT_MAX;
 	
 	
 	
