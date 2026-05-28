@@ -129,9 +129,9 @@ void AEnemyAIController::AssignPlayerTarget()
 		return;
 	}
 
-	if (ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
 	{
-		TargetPlayer = PlayerCharacter;
+		TargetPlayer = PlayerPawn;
 
 		if (BlackboardComponent)
 		{
