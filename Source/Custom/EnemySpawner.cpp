@@ -3,6 +3,7 @@
 #include "NavigationSystem.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "GameFramework/Character.h"
 
 AEnemySpawner::AEnemySpawner()
 {
@@ -109,12 +110,13 @@ bool AEnemySpawner::TryGetSpawnLocation(FVector& OutSpawnLocation) const
 	FVector CandidateLocation = PointOnEdge + (InwardDirection * DepthOffset);
 	CandidateLocation.Z = 88.0f;
 
-	if (const UWorld* World = GetWorld())
+	if (UWorld* World = GetWorld())
 	{
 		if (UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
 		{
 			FNavLocation NavLocation;
 			const FVector Extent(NavProjectionExtent, NavProjectionExtent, NavProjectionExtent);
+
 			if (NavSystem->ProjectPointToNavigation(CandidateLocation, NavLocation, Extent))
 			{
 				OutSpawnLocation = NavLocation.Location;
