@@ -28,7 +28,6 @@ AStickyCylinderExplosive::AStickyCylinderExplosive()
 	CylinderMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Cylinder Mesh"));
 	CylinderMesh->SetupAttachment(CollisionComponent);
 	CylinderMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	CylinderMesh->SetRelativeScale3D(FVector(0.35f, 0.35f, 0.45f));
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultCylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	if (DefaultCylinderMesh.Succeeded())
@@ -39,7 +38,7 @@ AStickyCylinderExplosive::AStickyCylinderExplosive()
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("Projectile Movement"));
 	ProjectileMovement->InitialSpeed = 2200.0f;
 	ProjectileMovement->MaxSpeed = 2200.0f;
-	ProjectileMovement->ProjectileGravityScale = 0.35f;
+	ProjectileMovement->ProjectileGravityScale = 3.50f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = false;
 }
