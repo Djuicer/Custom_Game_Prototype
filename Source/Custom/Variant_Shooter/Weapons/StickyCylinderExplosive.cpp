@@ -102,16 +102,44 @@ void AStickyCylinderExplosive::StickToSurface(const FHitResult& Hit)
 	{
 		AttachToComponent(HitComponent, FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
 	}
+
+	if (bPendingDetonation)
+	{
+		Detonate();
+	}
 }
 
-void AStickyCylinderExplosive::Detonate()
+void AStickyCylinderExplosive::RequestDetonation()
 {
-	if (!bIsStuck || bHasDetonated)
+	if (bHasDetonated)
 	{
 		return;
 	}
 
+	if (!bIsStuck)
+	{
+		bPendingDetonation = true;
+		return;
+	}
+
+	Detonate();
+}
+
+void AStickyCylinderExplosive::Detonate()
+{
+	if (bHasDetonated)
+	{
+		return;
+	}
+
+	if (!bIsStuck)
+	{
+		bPendingDetonation = true;
+		return;
+	}
+
 	bHasDetonated = true;
+	bPendingDetonation = false;
 	ApplyExplosionEffects();
 	Destroy();
 }

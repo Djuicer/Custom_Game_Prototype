@@ -56,6 +56,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sticky Explosive|Stick")
 	bool bIsStuck = false;
 
+	/** Whether detonation was requested before the explosive stuck to a surface. */
+	bool bPendingDetonation = false;
+
 	/** Whether this explosive has already detonated. */
 	bool bHasDetonated = false;
 
@@ -65,7 +68,11 @@ public:
 	/** Launches the explosive in the supplied direction. */
 	void LaunchInDirection(const FVector& Direction);
 
-	/** Detonates the explosive if it is stuck and has not already detonated. */
+	/** Requests detonation, or detonates immediately if the explosive is already stuck. */
+	UFUNCTION(BlueprintCallable, Category = "Sticky Explosive")
+	void RequestDetonation();
+
+	/** Detonates once when stuck, or records a pending detonation request while airborne. */
 	UFUNCTION(BlueprintCallable, Category = "Sticky Explosive")
 	void Detonate();
 

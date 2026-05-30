@@ -247,6 +247,7 @@ void AShooterCharacter::DoThrowStickyExplosive()
 
 	if (ActiveStickyExplosive)
 	{
+		ActiveStickyExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
 		ActiveStickyExplosive->LaunchInDirection(ThrowDirection);
 	}
 }
@@ -258,8 +259,15 @@ void AShooterCharacter::DoDetonateStickyExplosive()
 		return;
 	}
 
-	ActiveStickyExplosive->Detonate();
-	ActiveStickyExplosive = nullptr;
+	ActiveStickyExplosive->RequestDetonation();
+}
+
+void AShooterCharacter::HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor)
+{
+	if (DestroyedActor == ActiveStickyExplosive)
+	{
+		ActiveStickyExplosive = nullptr;
+	}
 }
 
 void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)

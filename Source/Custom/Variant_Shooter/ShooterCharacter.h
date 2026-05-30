@@ -169,9 +169,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoThrowStickyExplosive();
 
-	/** Detonates the active sticky cylinder explosive after it has stuck to a surface. */
+	/** Requests detonation for the active sticky cylinder explosive. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoDetonateStickyExplosive();
+
+	/** Clears the active sticky explosive reference when it detonates or is otherwise destroyed. */
+	UFUNCTION()
+	void HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor);
 
 public:
 
