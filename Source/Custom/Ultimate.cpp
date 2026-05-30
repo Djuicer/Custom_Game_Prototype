@@ -233,6 +233,8 @@ void AUltimate::Detonate()
 
 	const FRotator UltimateViewRotation = CachedPlayerController->GetControlRotation();
 
+	SpawnExplosionEffect();
+
 	// Damage / pull / push logic.
 	ExplosionCheck(GetActorLocation());
 
@@ -294,6 +296,32 @@ void AUltimate::Detonate()
 		&AUltimate::DestroyUltimateAfterReturn,
 		0.01f,
 		false
+	);
+}
+
+void AUltimate::SpawnExplosionEffect()
+{
+	if (!ExplosionEffectClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = GetInstigator();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	World->SpawnActor<AActor>(
+		ExplosionEffectClass,
+		GetActorLocation(),
+		GetActorRotation(),
+		SpawnParams
 	);
 }
 

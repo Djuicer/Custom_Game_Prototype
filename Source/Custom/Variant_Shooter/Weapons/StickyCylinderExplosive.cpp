@@ -162,8 +162,35 @@ void AStickyCylinderExplosive::Detonate()
 
 	bHasDetonated = true;
 	bPendingDetonation = false;
+	SpawnExplosionEffect();
 	ApplyExplosionEffects();
 	Destroy();
+}
+
+void AStickyCylinderExplosive::SpawnExplosionEffect()
+{
+	if (!ExplosionEffectClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = GetInstigator();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	World->SpawnActor<AActor>(
+		ExplosionEffectClass,
+		GetActorLocation(),
+		GetActorRotation(),
+		SpawnParams
+	);
 }
 
 void AStickyCylinderExplosive::ApplyExplosionEffects()

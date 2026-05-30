@@ -39,6 +39,8 @@ protected:
 
 	void Detonate();
 
+	void SpawnExplosionEffect();
+
 	void ExplosionCheck(const FVector& ExplosionCenter);
 
 	void ProcessHit(
@@ -87,6 +89,10 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ultimate Explosion", meta = (AllowPrivateAccess = "true"))
 	float HitDamage = 100.0f;
+
+	/** Optional Blueprint actor spawned when the Ultimate detonates. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ultimate Explosion", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AActor> ExplosionEffectClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ultimate Explosion", meta = (AllowPrivateAccess = "true"))
 	float PlayerPushForce = 1500.0f;
