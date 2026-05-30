@@ -8,6 +8,7 @@
 #include "ShooterCharacter.generated.h"
 
 class AShooterWeapon;
+class AStickyCylinderExplosive;
 class UInputAction;
 class UInputComponent;
 class UPawnNoiseEmitterComponent;
@@ -39,6 +40,14 @@ protected:
 	/** Switch weapon input action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* SwitchWeaponAction;
+
+	/** Optional Enhanced Input action for throwing the sticky explosive. Shift is also bound directly in C++. */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* ThrowStickyExplosiveAction;
+
+	/** Optional Enhanced Input action for detonating the sticky explosive. Right Mouse Button is also bound directly in C++. */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* DetonateStickyExplosiveAction;
 
 	/** Name of the first person mesh weapon socket */
 	UPROPERTY(EditAnywhere, Category ="Weapons")
@@ -80,6 +89,18 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category="Weapons")
 	TSubclassOf<AShooterWeapon> DefaultWeaponClass;
+
+	/** Sticky explosive class to throw. Uses the native cylinder explosive if left unset. */
+	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive")
+	TSubclassOf<AStickyCylinderExplosive> StickyExplosiveClass;
+
+	/** Currently active sticky explosive. Throwing another replaces this one. */
+	UPROPERTY()
+	TObjectPtr<AStickyCylinderExplosive> ActiveStickyExplosive;
+
+	/** Distance in front of the first-person camera used to spawn the sticky explosive. */
+	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
+	float StickyExplosiveSpawnDistance = 100.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Character Switching")
 	TSubclassOf<AUltimate> UltimateCharacterClass;
@@ -143,6 +164,14 @@ public:
 	/** Handles switch weapon input */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
+
+	/** Throws or replaces the active sticky cylinder explosive. */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoThrowStickyExplosive();
+
+	/** Detonates the active sticky cylinder explosive after it has stuck to a surface. */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoDetonateStickyExplosive();
 
 public:
 

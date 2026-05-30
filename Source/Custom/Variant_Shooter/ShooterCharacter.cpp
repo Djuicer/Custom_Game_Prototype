@@ -2,6 +2,7 @@
 
 #include "ShooterCharacter.h"
 #include "ShooterWeapon.h"
+#include "StickyCylinderExplosive.h"
 #include "EnhancedInputComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
@@ -22,6 +23,8 @@ AShooterCharacter::AShooterCharacter()
 
 	// configure movement
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 600.0f, 0.0f);
+
+	StickyExplosiveClass = AStickyCylinderExplosive::StaticClass();
 }
 
 void AShooterCharacter::BeginPlay()
@@ -71,6 +74,10 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	// Press Q to switch from ShooterCharacter to Ultimate
 	PlayerInputComponent->BindKey(EKeys::Q, IE_Pressed, this, &AShooterCharacter::DoSwitchToUltimate);
 
+	// Sticky explosive fallback bindings so the ability is immediately testable without asset changes.
+	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &AShooterCharacter::DoThrowStickyExplosive);
+	PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &AShooterCharacter::DoDetonateStickyExplosive);
+
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
@@ -80,6 +87,16 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		// Switch weapon
 		EnhancedInputComponent->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::DoSwitchWeapon);
+
+		if (ThrowStickyExplosiveAction)
+		{
+			EnhancedInputComponent->BindAction(ThrowStickyExplosiveAction, ETriggerEvent::Started, this, &AShooterCharacter::DoThrowStickyExplosive);
+		}
+
+		if (DetonateStickyExplosiveAction)
+		{
+			EnhancedInputComponent->BindAction(DetonateStickyExplosiveAction, ETriggerEvent::Started, this, &AShooterCharacter::DoDetonateStickyExplosive);
+		}
 	}
 }
 
@@ -189,6 +206,60 @@ void AShooterCharacter::DoSwitchWeapon()
 		// activate the new weapon
 		CurrentWeapon->ActivateWeapon();
 	}
+}
+
+void AShooterCharacter::DoThrowStickyExplosive()
+{
+	if (IsDead() || !GetWorld())
+	{
+		return;
+	}
+
+	if (IsValid(ActiveStickyExplosive))
+	{
+		ActiveStickyExplosive->Destroy();
+		ActiveStickyExplosive = nullptr;
+	}
+
+	TSubclassOf<AStickyCylinderExplosive> ExplosiveClass = StickyExplosiveClass;
+	if (!ExplosiveClass)
+	{
+		ExplosiveClass = AStickyCylinderExplosive::StaticClass();
+	}
+
+	const UCameraComponent* FirstPersonCamera = GetFirstPersonCameraComponent();
+	const FVector ThrowDirection = FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector();
+	const FVector SpawnLocation = (FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation())
+		+ ThrowDirection * StickyExplosiveSpawnDistance;
+	const FRotator SpawnRotation = ThrowDirection.Rotation();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ActiveStickyExplosive = GetWorld()->SpawnActor<AStickyCylinderExplosive>(
+		ExplosiveClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParams
+	);
+
+	if (ActiveStickyExplosive)
+	{
+		ActiveStickyExplosive->LaunchInDirection(ThrowDirection);
+	}
+}
+
+void AShooterCharacter::DoDetonateStickyExplosive()
+{
+	if (IsDead() || !IsValid(ActiveStickyExplosive))
+	{
+		return;
+	}
+
+	ActiveStickyExplosive->Detonate();
+	ActiveStickyExplosive = nullptr;
 }
 
 void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
