@@ -1,5 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "EnemyAIController.h"
+
+#include "Enemy.h"
 #include "NavigationSystem.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
@@ -52,8 +54,7 @@ void AEnemyAIController::InitializeBehavior()
 	if (BlackboardComponent)
 	{
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
-		BlackboardComponent->SetValueAsBool(TEXT("HoldsShield"), false);
-		BlackboardComponent->SetValueAsBool(TEXT("AttackPlayer"), false);
+		UpdateShieldState();
 	}
 }
 
@@ -90,6 +91,11 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
 		UpdatePlayerChasePosition();
+		UpdateShieldState();
+	}
+	else
+	{
+		UpdateShieldState();
 	}
 }
 
@@ -108,6 +114,7 @@ void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 		BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 		BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
 		UpdatePlayerChasePosition();
+		UpdateShieldState();
 	}
 
 }
@@ -120,7 +127,9 @@ void AEnemyAIController::AttackPlayer()
 	}
 
 	const float DistanceToPlayer = FVector::Dist(GetPawn()->GetActorLocation(), TargetPlayer->GetActorLocation());
-	if (DistanceToPlayer > AttackRange)
+	const bool bInAttackRange = DistanceToPlayer <= AttackRange;
+	UpdateShieldState();
+	if (!bInAttackRange)
 	{
 		return;
 	}
@@ -130,6 +139,12 @@ void AEnemyAIController::AttackPlayer()
 	{
 		return;
 	}
+
+	if (AEnemy* EnemyPawn = Cast<AEnemy>(GetPawn()))
+	{
+		EnemyPawn->SetShieldRaised(false);
+	}
+	SetShieldBlackboardState(false, true);
 
 	StopMovement();
 	FDamageEvent DamageEvent;
@@ -153,8 +168,34 @@ void AEnemyAIController::AssignPlayerTarget()
 			BlackboardComponent->SetValueAsBool(TEXT("ChasePlayer"), true);
 			BlackboardComponent->SetValueAsObject(TEXT("TargetActor"), TargetPlayer);
 			UpdatePlayerChasePosition();
+			UpdateShieldState();
 		}
 	}
+}
+
+void AEnemyAIController::UpdateShieldState()
+{
+	AEnemy* EnemyPawn = Cast<AEnemy>(GetPawn());
+	if (!EnemyPawn)
+	{
+		SetShieldBlackboardState(false, false);
+		return;
+	}
+
+	const bool bInAttackRange = TargetPlayer && FVector::Dist(EnemyPawn->GetActorLocation(), TargetPlayer->GetActorLocation()) <= AttackRange;
+	EnemyPawn->SetShieldRaised(!bInAttackRange);
+	SetShieldBlackboardState(EnemyPawn->IsShieldProtecting(), bInAttackRange);
+}
+
+void AEnemyAIController::SetShieldBlackboardState(bool bIsHoldingShield, bool bIsAttacking) const
+{
+	if (!BlackboardComponent)
+	{
+		return;
+	}
+
+	BlackboardComponent->SetValueAsBool(TEXT("HoldsShield"), bIsHoldingShield);
+	BlackboardComponent->SetValueAsBool(TEXT("AttackPlayer"), bIsAttacking);
 }
 
 void AEnemyAIController::UpdatePlayerChasePosition()
