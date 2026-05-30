@@ -38,7 +38,7 @@ protected:
 
 	/** Base explosion launch/impulse force. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sticky Explosive|Explosion", meta = (ClampMin = 0.0))
-	float ExplosionForce = 1600.0f;
+	float ExplosionForce = 2200.0f;
 
 	/** Damage dealt only to enemy actors. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sticky Explosive|Explosion", meta = (ClampMin = 0.0))

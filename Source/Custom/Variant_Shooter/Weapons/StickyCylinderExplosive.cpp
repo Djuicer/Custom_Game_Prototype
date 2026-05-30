@@ -73,7 +73,20 @@ void AStickyCylinderExplosive::NotifyHit(
 {
 	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
 
-	if (bIsStuck || bHasDetonated || !Other || Other == this || Other == GetInstigator())
+	if (bIsStuck || bHasDetonated)
+	{
+		return;
+	}
+
+	// Ignore invalid hits, self hits, and the player who threw it.
+	if (!Other || Other == this || Other == GetInstigator())
+	{
+		return;
+	}
+
+	// Important fix:
+	// Do not allow the explosive to stick to its own collision component.
+	if (!OtherComp || OtherComp == CollisionComponent || OtherComp->GetOwner() == this)
 	{
 		return;
 	}
@@ -83,6 +96,14 @@ void AStickyCylinderExplosive::NotifyHit(
 
 void AStickyCylinderExplosive::StickToSurface(const FHitResult& Hit)
 {
+	UPrimitiveComponent* HitComponent = Hit.GetComponent();
+
+	// Safety check: never attach to our own component.
+	if (!HitComponent || HitComponent == CollisionComponent || HitComponent->GetOwner() == this)
+	{
+		return;
+	}
+
 	bIsStuck = true;
 
 	ProjectileMovement->StopMovementImmediately();
@@ -98,10 +119,11 @@ void AStickyCylinderExplosive::StickToSurface(const FHitResult& Hit)
 
 	SetActorLocationAndRotation(StuckLocation, StuckRotation);
 
-	if (UPrimitiveComponent* HitComponent = Hit.GetComponent())
-	{
-		AttachToComponent(HitComponent, FAttachmentTransformRules::KeepWorldTransform, Hit.BoneName);
-	}
+	AttachToComponent(
+		HitComponent,
+		FAttachmentTransformRules::KeepWorldTransform,
+		Hit.BoneName
+	);
 
 	if (bPendingDetonation)
 	{
