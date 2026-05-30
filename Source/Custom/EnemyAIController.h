@@ -11,6 +11,8 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "EnemyAIController.generated.h"
 
+class AEnemy;
+
 /**
  * 
  */
@@ -36,6 +38,8 @@ private:
 	void InitializeBehavior();
 	void AssignPlayerTarget();
 	void UpdatePlayerChasePosition();
+	void UpdateShieldState();
+	void SetShieldBlackboardState(bool bIsHoldingShield, bool bIsAttacking) const;
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Damage")
