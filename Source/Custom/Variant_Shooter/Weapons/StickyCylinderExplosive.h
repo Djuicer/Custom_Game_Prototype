@@ -44,6 +44,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sticky Explosive|Explosion", meta = (ClampMin = 0.0))
 	float DamageAmount = 50.0f;
 
+	/** Optional Blueprint actor spawned when this explosive detonates. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sticky Explosive|Explosion")
+	TSubclassOf<AActor> ExplosionEffectClass;
+
 	/** Small upward bias so launched characters pop away from the ground. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sticky Explosive|Explosion")
 	float UpwardLaunchBias = 0.25f;
@@ -102,6 +106,9 @@ protected:
 
 	/** Stops movement and attaches/aligned the cylinder to the hit surface. */
 	void StickToSurface(const FHitResult& Hit);
+
+	/** Spawns the optional Blueprint explosion effect at the current actor transform. */
+	void SpawnExplosionEffect();
 
 	/** Applies launch/impulse push and enemy-only damage around the explosive. */
 	void ApplyExplosionEffects();
