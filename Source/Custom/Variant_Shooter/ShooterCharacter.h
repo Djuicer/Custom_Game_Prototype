@@ -94,19 +94,43 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive")
 	TSubclassOf<AStickyCylinderExplosive> StickyExplosiveClass;
 
-	/** Currently active sticky explosive. Throwing another replaces this one. */
+	/** Currently active sticky explosives thrown by this character. */
 	UPROPERTY()
-	TObjectPtr<AStickyCylinderExplosive> ActiveStickyExplosive;
+	TArray<TObjectPtr<AStickyCylinderExplosive>> ActiveStickyExplosives;
 
 	/** Distance in front of the first-person camera used to spawn the sticky explosive. */
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
 	float StickyExplosiveSpawnDistance = 100.0f;
 
-	/** Seconds before another sticky cylinder explosive can be thrown. Cooldown starts when a throw succeeds. */
+	/** Seconds before another sticky cylinder explosive burst can be thrown. Cooldown starts when a throw succeeds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "s"))
 	float ExplosiveCylinderCooldown = 3.0f;
 
-	/** World time when the next sticky cylinder explosive throw is allowed. */
+	/** Destroyed enemies required before each throw launches the triple-cylinder burst. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive|Upgrade", meta = (ClampMin = 0))
+	int32 TripleCylinderEnemyRequirement = 5;
+
+	/** Destroyed enemies required before each throw launches the five-cylinder burst. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive|Upgrade", meta = (ClampMin = 0))
+	int32 FiveCylinderEnemyRequirement = 10;
+
+	/** Number of cylinders thrown before any upgrade threshold is reached. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive|Upgrade", meta = (ClampMin = 1))
+	int32 DefaultCylinderCount = 1;
+
+	/** Number of cylinders thrown after reaching TripleCylinderEnemyRequirement. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive|Upgrade", meta = (ClampMin = 1))
+	int32 TripleCylinderCount = 3;
+
+	/** Number of cylinders thrown after reaching FiveCylinderEnemyRequirement. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive|Upgrade", meta = (ClampMin = 1))
+	int32 FiveCylinderCount = 5;
+
+	/** Yaw angle between cylinders in a multi-cylinder burst. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive|Upgrade", meta = (ClampMin = 0.0, Units = "deg"))
+	float CylinderSpreadAngle = 7.5f;
+
+	/** World time when the next sticky cylinder explosive burst is allowed. */
 	float NextExplosiveCylinderThrowTime = 0.0f;
 
 	/** Lifetime number of enemy actors that have reported death/destruction to this player. */
@@ -189,21 +213,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
 
-	/** Throws or replaces the active sticky cylinder explosive. */
+	/** Throws a sticky cylinder explosive burst. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoThrowStickyExplosive();
 
-	/** Requests detonation for the active sticky cylinder explosive. */
+	/** Requests detonation for all active sticky cylinder explosives. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoDetonateStickyExplosive();
 
-	/** Clears the active sticky explosive reference when it detonates or is otherwise destroyed. */
+	/** Clears an active sticky explosive reference when it detonates or is otherwise destroyed. */
 	UFUNCTION()
 	void HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor);
 
-	/** Returns true when Shift can throw another explosive cylinder. */
+	/** Returns true when Shift can throw another explosive cylinder burst. */
 	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
 	bool CanThrowExplosiveCylinder() const;
+
+	/** Returns how many cylinders the next burst will throw based on the existing destroyed enemy count. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	int32 GetExplosiveCylinderBurstCount() const;
 
 	/** Returns seconds remaining before another explosive cylinder can be thrown. */
 	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
