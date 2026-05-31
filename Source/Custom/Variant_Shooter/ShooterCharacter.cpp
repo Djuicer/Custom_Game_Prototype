@@ -318,6 +318,14 @@ void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
 	++DestroyedEnemyCount;
 	++UltimateEnemyCharge;
 
+	for (AShooterWeapon* Weapon : OwnedWeapons)
+	{
+		if (Weapon)
+		{
+			Weapon->RefreshGrenadeLauncherUpgrades(DestroyedEnemyCount);
+		}
+	}
+
 	UE_LOG(
 		LogTemp,
 		Warning,

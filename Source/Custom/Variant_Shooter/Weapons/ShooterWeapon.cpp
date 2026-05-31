@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "ShooterProjectile.h"
 #include "ShooterWeaponHolder.h"
+#include "Variant_Shooter/ShooterCharacter.h"
 #include "Components/SceneComponent.h"
 #include "TimerManager.h"
 #include "Animation/AnimInstance.h"
@@ -50,6 +51,14 @@ void AShooterWeapon::BeginPlay()
 	// fill the first ammo clip
 	CurrentBullets = MagazineSize;
 
+	// initialize grenade launcher upgrade state from defaults and the owner's existing destroyed enemy count
+	CurrentProjectileCount = FMath::Max(1, DefaultProjectileCount);
+	CurrentProjectilePullForce = DefaultProjectilePullForce;
+	if (const AShooterCharacter* ShooterOwner = Cast<AShooterCharacter>(GetOwner()))
+	{
+		UpdateGrenadeLauncherUpgrades(ShooterOwner->GetDestroyedEnemyCount());
+	}
+
 	// attach the meshes to the owner
 	WeaponOwner->AttachWeaponMeshes(this);
 }
@@ -87,6 +96,11 @@ void AShooterWeapon::DeactivateWeapon()
 
 	// notify the owner
 	WeaponOwner->OnWeaponDeactivated(this);
+}
+
+void AShooterWeapon::RefreshGrenadeLauncherUpgrades(int32 DestroyedEnemyCount)
+{
+	UpdateGrenadeLauncherUpgrades(DestroyedEnemyCount);
 }
 
 void AShooterWeapon::StartFiring()
@@ -130,6 +144,11 @@ void AShooterWeapon::Fire()
 	{
 		return;
 	}
+
+	if (const AShooterCharacter* ShooterOwner = Cast<AShooterCharacter>(GetOwner()))
+	{
+		UpdateGrenadeLauncherUpgrades(ShooterOwner->GetDestroyedEnemyCount());
+	}
 	
 	// fire a projectile at the target
 	FireProjectile(WeaponOwner->GetWeaponTargetLocation());
@@ -161,25 +180,38 @@ void AShooterWeapon::FireCooldownExpired()
 
 void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 {
-	// get the projectile transform
-	FTransform ProjectileTransform = CalculateProjectileSpawnTransform(TargetLocation);
-	
-	// spawn the projectile
+	if (!ProjectileClass || !GetWorld())
+	{
+		return;
+	}
+
+	// spawn all projectiles selected by the current grenade launcher upgrade tier
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.Instigator = PawnOwner;
 
-	AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
+	const int32 ProjectileCount = FMath::Max(1, CurrentProjectileCount);
+	for (int32 ProjectileIndex = 0; ProjectileIndex < ProjectileCount; ++ProjectileIndex)
+	{
+		const float YawOffset = CalculateProjectileYawOffset(ProjectileIndex, ProjectileCount);
+		const FTransform ProjectileTransform = CalculateProjectileSpawnTransform(TargetLocation, YawOffset);
 
-	// play the firing montage
+		AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
+		if (Projectile)
+		{
+			Projectile->SetEnemyPullForce(CurrentProjectilePullForce);
+		}
+	}
+
+	// play the firing montage once per trigger pull
 	WeaponOwner->PlayFiringMontage(FiringMontage);
 
-	// add recoil
+	// add recoil once per trigger pull
 	WeaponOwner->AddWeaponRecoil(FiringRecoil);
 
-	// consume bullets
+	// consume one ammo round per trigger pull, even when upgrades spawn multiple projectiles
 	--CurrentBullets;
 
 	// if the clip is depleted, reload it
@@ -194,17 +226,68 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 
 FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation) const
 {
+	return CalculateProjectileSpawnTransform(TargetLocation, 0.0f);
+}
+
+FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation, float YawOffsetDegrees) const
+{
 	// find the muzzle location
 	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
 
 	// calculate the spawn location ahead of the muzzle
 	const FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
 
-	// find the aim rotation vector while applying some variance to the target 
-	const FRotator AimRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * AimVariance));
+	// find the aim rotation vector while applying some variance to the target
+	FRotator AimRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * AimVariance));
+	AimRot.Yaw += YawOffsetDegrees;
 
 	// return the built transform
 	return FTransform(AimRot, SpawnLoc, FVector::OneVector);
+}
+
+float AShooterWeapon::CalculateProjectileYawOffset(int32 ProjectileIndex, int32 ProjectileCount) const
+{
+	const float CenteredIndex = static_cast<float>(ProjectileIndex) - ((static_cast<float>(ProjectileCount) - 1.0f) * 0.5f);
+	return CenteredIndex * SpreadAngle;
+}
+
+void AShooterWeapon::UpdateGrenadeLauncherUpgrades(int32 DestroyedEnemyCount)
+{
+	CurrentProjectileCount = FMath::Max(1, DefaultProjectileCount);
+	CurrentProjectilePullForce = DefaultProjectilePullForce;
+
+	if (DestroyedEnemyCount >= TripleShotEnemyRequirement)
+	{
+		CurrentProjectileCount = FMath::Max(1, TripleShotProjectileCount);
+
+		if (!bTripleShotUpgradeUnlocked)
+		{
+			bTripleShotUpgradeUnlocked = true;
+			UE_LOG(LogTemp, Warning, TEXT("Grenade launcher upgrade unlocked: %d-shot at %d destroyed enemies."), CurrentProjectileCount, DestroyedEnemyCount);
+		}
+	}
+
+	if (DestroyedEnemyCount >= FiveShotEnemyRequirement)
+	{
+		CurrentProjectileCount = FMath::Max(1, FiveShotProjectileCount);
+
+		if (!bFiveShotUpgradeUnlocked)
+		{
+			bFiveShotUpgradeUnlocked = true;
+			UE_LOG(LogTemp, Warning, TEXT("Grenade launcher upgrade unlocked: %d-shot at %d destroyed enemies."), CurrentProjectileCount, DestroyedEnemyCount);
+		}
+	}
+
+	if (DestroyedEnemyCount >= StrongPullEnemyRequirement)
+	{
+		CurrentProjectilePullForce = UpgradedProjectilePullForce;
+
+		if (!bStrongPullUpgradeUnlocked)
+		{
+			bStrongPullUpgradeUnlocked = true;
+			UE_LOG(LogTemp, Warning, TEXT("Grenade launcher upgrade unlocked: strong pull force %.1f at %d destroyed enemies."), CurrentProjectilePullForce, DestroyedEnemyCount);
+		}
+	}
 }
 
 const TSubclassOf<UAnimInstance>& AShooterWeapon::GetFirstPersonAnimInstanceClass() const
