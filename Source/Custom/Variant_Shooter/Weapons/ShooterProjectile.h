@@ -86,6 +86,14 @@ public:
 	/** Constructor */
 	AShooterProjectile();
 
+	/** Overrides the pull force used when explosion effects pull enemy characters toward the projectile. */
+	UFUNCTION(BlueprintCallable, Category="Projectile|Explosion")
+	void SetEnemyPullForce(float NewEnemyPullForce);
+
+	/** Returns the pull force used on enemy characters by explosion effects. */
+	UFUNCTION(BlueprintPure, Category="Projectile|Explosion")
+	float GetEnemyPullForce() const { return EnemyPullForce; }
+
 protected:
 	
 	/** Gameplay initialization */

@@ -39,6 +39,11 @@ AShooterProjectile::AShooterProjectile()
 	HitDamageType = UDamageType::StaticClass();
 }
 
+void AShooterProjectile::SetEnemyPullForce(float NewEnemyPullForce)
+{
+	EnemyPullForce = FMath::Max(0.0f, NewEnemyPullForce);
+}
+
 void AShooterProjectile::BeginPlay()
 {
 	Super::BeginPlay();

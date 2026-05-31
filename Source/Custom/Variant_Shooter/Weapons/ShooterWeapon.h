@@ -48,6 +48,57 @@ protected:
 
 	/** Number of bullets in the current magazine */
 	int32 CurrentBullets = 0;
+
+	/** Destroyed enemies required before this grenade launcher fires three projectiles. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 0))
+	int32 TripleShotEnemyRequirement = 10;
+
+	/** Destroyed enemies required before this grenade launcher fires five projectiles. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 0))
+	int32 FiveShotEnemyRequirement = 12;
+
+	/** Destroyed enemies required before projectiles use the upgraded enemy pull force. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 0))
+	int32 StrongPullEnemyRequirement = 15;
+
+	/** Projectile count before grenade launcher shot-count upgrades are unlocked. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 1, ClampMax = 25))
+	int32 DefaultProjectileCount = 1;
+
+	/** Projectile count after TripleShotEnemyRequirement destroyed enemies. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 1, ClampMax = 25))
+	int32 TripleShotProjectileCount = 3;
+
+	/** Projectile count after FiveShotEnemyRequirement destroyed enemies. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 1, ClampMax = 25))
+	int32 FiveShotProjectileCount = 5;
+
+	/** Yaw angle between projectiles when upgraded shots fire multiple grenades. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 0.0, ClampMax = 45.0, Units = "Degrees"))
+	float SpreadAngle = 5.0f;
+
+	/** Pull force assigned to spawned grenade projectiles before the strong-pull upgrade unlocks. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 0.0))
+	float DefaultProjectilePullForce = 2200.0f;
+
+	/** Pull force assigned to spawned grenade projectiles after StrongPullEnemyRequirement is reached. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grenade Launcher Upgrades", meta = (ClampMin = 0.0))
+	float UpgradedProjectilePullForce = 6000.0f;
+
+	/** Current projectile count selected from destroyed enemy upgrade thresholds. */
+	int32 CurrentProjectileCount = 1;
+
+	/** Current projectile pull force selected from destroyed enemy upgrade thresholds. */
+	float CurrentProjectilePullForce = 2200.0f;
+
+	/** Tracks whether the triple-shot upgrade unlock log has already fired. */
+	bool bTripleShotUpgradeUnlocked = false;
+
+	/** Tracks whether the five-shot upgrade unlock log has already fired. */
+	bool bFiveShotUpgradeUnlocked = false;
+
+	/** Tracks whether the strong-pull upgrade unlock log has already fired. */
+	bool bStrongPullUpgradeUnlocked = false;
 	
 	/** Animation montage to play when firing this weapon */
 	UPROPERTY(EditAnywhere, Category="Animation")
@@ -139,6 +190,9 @@ public:
 	/** Start firing this weapon */
 	void StartFiring();
 
+	/** Refreshes grenade launcher upgrades from the owner's existing destroyed enemy count. */
+	void RefreshGrenadeLauncherUpgrades(int32 DestroyedEnemyCount);
+
 	/** Stop firing this weapon */
 	void StopFiring();
 
@@ -150,11 +204,20 @@ protected:
 	/** Called when the refire rate time has passed while shooting semi auto weapons */
 	void FireCooldownExpired();
 
-	/** Fire a projectile towards the target location */
+	/** Fire one or more projectiles towards the target location. */
 	virtual void FireProjectile(const FVector& TargetLocation);
 
-	/** Calculates the spawn transform for projectiles shot by this weapon */
+	/** Calculates the spawn transform for projectiles shot by this weapon. */
 	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation) const;
+
+	/** Calculates the spawn transform for one projectile in a multi-projectile spread. */
+	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation, float YawOffsetDegrees) const;
+
+	/** Returns the yaw offset for the projectile at the given index so spreads stay centered on the aim direction. */
+	float CalculateProjectileYawOffset(int32 ProjectileIndex, int32 ProjectileCount) const;
+
+	/** Applies grenade launcher upgrade state from the owner's existing destroyed enemy count. */
+	void UpdateGrenadeLauncherUpgrades(int32 DestroyedEnemyCount);
 
 public:
 
