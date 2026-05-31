@@ -189,8 +189,9 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
-	SpawnParams.Owner = GetOwner();
-	SpawnParams.Instigator = PawnOwner;
+	APawn* ShooterPawn = Cast<APawn>(GetOwner());
+	SpawnParams.Owner = ShooterPawn ? static_cast<AActor*>(ShooterPawn) : GetOwner();
+	SpawnParams.Instigator = ShooterPawn;
 
 	const int32 ProjectileCount = FMath::Max(1, CurrentProjectileCount);
 	for (int32 ProjectileIndex = 0; ProjectileIndex < ProjectileCount; ++ProjectileIndex)
@@ -234,8 +235,9 @@ FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& Targ
 	// find the muzzle location
 	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
 
-	// calculate the spawn location ahead of the muzzle
-	const FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
+	// calculate the spawn location safely ahead of the muzzle so spread grenades do not spawn inside the shooter
+	const FVector AimDirection = (TargetLocation - MuzzleLoc).GetSafeNormal();
+	const FVector SpawnLoc = MuzzleLoc + (AimDirection * FMath::Max(MuzzleOffset, MinimumProjectileSpawnOffset));
 
 	// find the aim rotation vector while applying some variance to the target
 	FRotator AimRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * AimVariance));
