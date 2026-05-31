@@ -18,6 +18,9 @@
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "Blueprint/UserWidget.h"
+#include "EnemySpawner.h"
+#include "Kismet/GameplayStatics.h"
+#include "Variant_Shooter/UI/ShooterGameplayUI.h"
 
 AShooterCharacter::AShooterCharacter()
 {
@@ -55,19 +58,8 @@ void AShooterCharacter::BeginPlay()
 		}
 	}
 
-	// Create this character's assigned player HUD only for the locally controlled player pawn.
-	if (!PlayerHUDWidgetInstance && PlayerHUDWidgetClass && IsPlayerControlled() && IsLocallyControlled())
-	{
-		if (APlayerController* PC = Cast<APlayerController>(GetController()))
-		{
-			PlayerHUDWidgetInstance = CreateWidget<UUserWidget>(PC, PlayerHUDWidgetClass);
-
-			if (PlayerHUDWidgetInstance)
-			{
-				PlayerHUDWidgetInstance->AddToViewport();
-			}
-		}
-	}
+	// Create the assigned player HUD once the locally controlled pawn has a valid controller.
+	CreateOrInitializePlayerHUD();
 	
 	// update the HUD
 	OnDamaged.Broadcast(1.0f);
@@ -84,6 +76,46 @@ void AShooterCharacter::EndPlay(EEndPlayReason::Type EndPlayReason)
 	{
 		PlayerHUDWidgetInstance->RemoveFromParent();
 		PlayerHUDWidgetInstance = nullptr;
+	}
+}
+
+
+void AShooterCharacter::InitializeGameplayHUD()
+{
+	CreateOrInitializePlayerHUD();
+}
+
+void AShooterCharacter::CreateOrInitializePlayerHUD()
+{
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return;
+	}
+
+	if (!PlayerHUDWidgetClass || !IsPlayerControlled() || !IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC || !PC->IsLocalPlayerController())
+	{
+		return;
+	}
+
+	if (!PlayerHUDWidgetInstance)
+	{
+		PlayerHUDWidgetInstance = CreateWidget<UUserWidget>(PC, PlayerHUDWidgetClass);
+		if (PlayerHUDWidgetInstance)
+		{
+			PlayerHUDWidgetInstance->AddToPlayerScreen(0);
+		}
+	}
+
+	if (UShooterGameplayUI* GameplayUI = Cast<UShooterGameplayUI>(PlayerHUDWidgetInstance))
+	{
+		GameplayUI->InitializeWithPlayer(this);
+		GameplayUI->RefreshUI();
 	}
 }
 
@@ -266,7 +298,7 @@ void AShooterCharacter::DoThrowStickyExplosive()
 		ExplosiveClass = AStickyCylinderExplosive::StaticClass();
 	}
 
-	const int32 CylinderCount = DestroyedEnemyCount >= 10 ? 5 : (DestroyedEnemyCount >= 5 ? 3 : 1);
+	const int32 CylinderCount = GetExplosiveCylinderCount();
 	const UCameraComponent* FirstPersonCamera = GetFirstPersonCameraComponent();
 	const FRotator BaseRotation = FirstPersonCamera ? FirstPersonCamera->GetComponentRotation() : GetControlRotation();
 	const FVector BaseLocation = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation();
@@ -350,6 +382,120 @@ float AShooterCharacter::GetExplosiveCylinderCooldownRemaining() const
 	}
 
 	return FMath::Max(0.0f, NextExplosiveCylinderThrowTime - World->GetTimeSeconds());
+}
+
+
+float AShooterCharacter::GetUltimateCharge() const
+{
+	return EnemiesRequiredForUltimate > 0
+		? FMath::Clamp(static_cast<float>(UltimateEnemyCharge) / static_cast<float>(EnemiesRequiredForUltimate), 0.0f, 1.0f)
+		: 0.0f;
+}
+
+float AShooterCharacter::GetExplosiveCylinderCooldownPercent() const
+{
+	if (ExplosiveCylinderCooldown <= 0.0f)
+	{
+		return 1.0f;
+	}
+
+	return FMath::Clamp(1.0f - (GetExplosiveCylinderCooldownRemaining() / ExplosiveCylinderCooldown), 0.0f, 1.0f);
+}
+
+int32 AShooterCharacter::GetGrenadeLauncherUpgradeLevel() const
+{
+	if (DestroyedEnemyCount >= 10)
+	{
+		return 3;
+	}
+
+	if (DestroyedEnemyCount >= 5)
+	{
+		return 2;
+	}
+
+	return 1;
+}
+
+int32 AShooterCharacter::GetExplosiveCylinderCount() const
+{
+	if (DestroyedEnemyCount >= 10)
+	{
+		return 5;
+	}
+
+	if (DestroyedEnemyCount >= 5)
+	{
+		return 3;
+	}
+
+	return 1;
+}
+
+int32 AShooterCharacter::GetCurrentWave() const
+{
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return 0;
+	}
+
+	TArray<AActor*> Spawners;
+	UGameplayStatics::GetAllActorsOfClass(this, AEnemySpawner::StaticClass(), Spawners);
+
+	int32 HighestWave = 0;
+	for (AActor* SpawnerActor : Spawners)
+	{
+		if (const AEnemySpawner* Spawner = Cast<AEnemySpawner>(SpawnerActor))
+		{
+			HighestWave = FMath::Max(HighestWave, Spawner->GetCurrentWave());
+		}
+	}
+
+	return HighestWave;
+}
+
+int32 AShooterCharacter::GetEnemiesRemainingInWave() const
+{
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return 0;
+	}
+
+	TArray<AActor*> Spawners;
+	UGameplayStatics::GetAllActorsOfClass(this, AEnemySpawner::StaticClass(), Spawners);
+
+	int32 RemainingEnemies = 0;
+	for (AActor* SpawnerActor : Spawners)
+	{
+		if (const AEnemySpawner* Spawner = Cast<AEnemySpawner>(SpawnerActor))
+		{
+			RemainingEnemies += Spawner->GetEnemiesRemainingInWave();
+		}
+	}
+
+	return RemainingEnemies;
+}
+
+int32 AShooterCharacter::GetEnemiesAliveInWave() const
+{
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return 0;
+	}
+
+	TArray<AActor*> Spawners;
+	UGameplayStatics::GetAllActorsOfClass(this, AEnemySpawner::StaticClass(), Spawners);
+
+	int32 AliveEnemies = 0;
+	for (AActor* SpawnerActor : Spawners)
+	{
+		if (const AEnemySpawner* Spawner = Cast<AEnemySpawner>(SpawnerActor))
+		{
+			AliveEnemies += Spawner->GetAliveEnemyCount();
+		}
+	}
+
+	return AliveEnemies;
 }
 
 void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)

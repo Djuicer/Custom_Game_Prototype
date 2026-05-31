@@ -4,12 +4,71 @@
 
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "GameFramework/Pawn.h"
+#include "Variant_Shooter/ShooterCharacter.h"
 
 #define LOCTEXT_NAMESPACE "ShooterGameplayUI"
 
 void UShooterGameplayUI::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	if (!IsValidShooterInstance(OwningShooterCharacter))
+	{
+		APawn* OwningPawn = GetOwningPlayerPawn();
+		if (AShooterCharacter* OwningShooter = Cast<AShooterCharacter>(OwningPawn))
+		{
+			InitializeWithPlayer(OwningShooter);
+		}
+	}
+
+	RefreshUI();
+}
+
+void UShooterGameplayUI::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	RefreshUI();
+}
+
+void UShooterGameplayUI::InitializeWithPlayer(AShooterCharacter* InPlayer)
+{
+	OwningShooterCharacter = IsValidShooterInstance(InPlayer) ? InPlayer : nullptr;
+	RefreshUI();
+}
+
+bool UShooterGameplayUI::IsValidShooterInstance(const AShooterCharacter* Candidate) const
+{
+	return IsValid(Candidate)
+		&& !Candidate->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)
+		&& Candidate->GetWorld() != nullptr;
+}
+
+void UShooterGameplayUI::RefreshUI()
+{
+	AShooterCharacter* Player = OwningShooterCharacter;
+	if (!IsValidShooterInstance(Player))
+	{
+		OwningShooterCharacter = nullptr;
+		RefreshAllUI();
+		return;
+	}
+
+	CurrentHealth = Player->GetCurrentHealth();
+	MaxHealth = Player->GetMaxHealth();
+	Score = Player->GetDestroyedEnemyCount();
+	UltimateCharge = Player->GetUltimateEnemyCharge();
+	UltimateRequired = Player->GetEnemiesRequiredForUltimate();
+	UltimatePercent = Player->GetUltimateCharge();
+	bUltimateReady = Player->IsUltimateReady();
+	ExplosiveCooldownRemaining = Player->GetExplosiveCylinderCooldownRemaining();
+	ExplosiveCooldownPercent = Player->GetExplosiveCylinderCooldownPercent();
+	GrenadeLauncherUpgradeLevel = Player->GetGrenadeLauncherUpgradeLevel();
+	ExplosiveCylinderCount = Player->GetExplosiveCylinderCount();
+	CurrentWave = Player->GetCurrentWave();
+	EnemiesRemaining = Player->GetEnemiesRemainingInWave();
+	EnemiesAlive = Player->GetEnemiesAliveInWave();
 
 	RefreshAllUI();
 }
@@ -43,8 +102,12 @@ void UShooterGameplayUI::RefreshAllUI()
 {
 	RefreshWaveText();
 	RefreshEnemiesRemainingText();
+	RefreshEnemiesAliveText();
 	RefreshScoreText();
 	RefreshHealthWidgets();
+	RefreshUltimateWidgets();
+	RefreshExplosiveCooldownWidgets();
+	RefreshGrenadeLauncherWidgets();
 }
 
 void UShooterGameplayUI::RefreshWaveText()
@@ -63,11 +126,19 @@ void UShooterGameplayUI::RefreshEnemiesRemainingText()
 	}
 }
 
+void UShooterGameplayUI::RefreshEnemiesAliveText()
+{
+	if (EnemiesAliveText)
+	{
+		EnemiesAliveText->SetText(FText::Format(LOCTEXT("EnemiesAliveFormat", "Enemies Alive: {0}"), FText::AsNumber(EnemiesAlive)));
+	}
+}
+
 void UShooterGameplayUI::RefreshScoreText()
 {
 	if (ScoreText)
 	{
-		ScoreText->SetText(FText::Format(LOCTEXT("ScoreFormat", "Score: {0}"), FText::AsNumber(Score)));
+		ScoreText->SetText(FText::Format(LOCTEXT("ScoreFormat", "Destroyed: {0}"), FText::AsNumber(Score)));
 	}
 }
 
@@ -85,6 +156,54 @@ void UShooterGameplayUI::RefreshHealthWidgets()
 	{
 		const float HealthPercent = MaxHealth > 0.0f ? FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f) : 0.0f;
 		HealthBar->SetPercent(HealthPercent);
+	}
+}
+
+void UShooterGameplayUI::RefreshUltimateWidgets()
+{
+	if (UltimateText)
+	{
+		UltimateText->SetText(FText::Format(
+			LOCTEXT("UltimateFormat", "Ultimate: {0} / {1}"),
+			FText::AsNumber(UltimateCharge),
+			FText::AsNumber(UltimateRequired)));
+	}
+
+	if (UltimateBar)
+	{
+		UltimateBar->SetPercent(UltimatePercent);
+	}
+
+	if (UltimateReadyText)
+	{
+		UltimateReadyText->SetText(bUltimateReady ? LOCTEXT("UltimateReady", "Ultimate Ready") : LOCTEXT("UltimateNotReady", "Ultimate Charging"));
+	}
+}
+
+void UShooterGameplayUI::RefreshExplosiveCooldownWidgets()
+{
+	if (ExplosiveCooldownText)
+	{
+		const FText CooldownText = ExplosiveCooldownRemaining <= 0.0f
+			? LOCTEXT("ExplosiveReady", "Cylinder: Ready")
+			: FText::Format(LOCTEXT("ExplosiveCooldownFormat", "Cylinder: {0}s"), FText::AsNumber(ExplosiveCooldownRemaining));
+		ExplosiveCooldownText->SetText(CooldownText);
+	}
+
+	if (ExplosiveCooldownBar)
+	{
+		ExplosiveCooldownBar->SetPercent(ExplosiveCooldownPercent);
+	}
+}
+
+void UShooterGameplayUI::RefreshGrenadeLauncherWidgets()
+{
+	if (GrenadeLauncherLevelText)
+	{
+		GrenadeLauncherLevelText->SetText(FText::Format(
+			LOCTEXT("GrenadeLauncherLevelFormat", "Grenade Lv {0} ({1} cylinders)"),
+			FText::AsNumber(GrenadeLauncherUpgradeLevel),
+			FText::AsNumber(ExplosiveCylinderCount)));
 	}
 }
 

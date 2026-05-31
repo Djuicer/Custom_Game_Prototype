@@ -14,6 +14,7 @@ class UInputComponent;
 class UPawnNoiseEmitterComponent;
 class AUltimate;
 class UUserWidget;
+class UShooterGameplayUI;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32, MagazineSize, int32, Bullets);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent);
@@ -144,6 +145,9 @@ protected:
 	/** Runtime instance of the player's HUD widget. */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> PlayerHUDWidgetInstance;
+
+	/** Creates the assigned gameplay HUD once and passes this character to widgets that support it. */
+	void CreateOrInitializePlayerHUD();
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Character Switching")
 	TSubclassOf<AUltimate> UltimateCharacterClass;
@@ -181,10 +185,23 @@ protected:
 
 public:
 
+	/** Ensures the gameplay HUD exists and has this character as its data source. */
+	UFUNCTION(BlueprintCallable, Category="UI")
+	void InitializeGameplayHUD();
+
 	/** Handle incoming damage */
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 public:
+
+
+	/** Current health value exposed for gameplay HUD widgets. */
+	UFUNCTION(BlueprintPure, Category="Health")
+	float GetCurrentHealth() const { return CurrentHP; }
+
+	/** Maximum health value exposed for gameplay HUD widgets. */
+	UFUNCTION(BlueprintPure, Category="Health")
+	float GetMaxHealth() const { return MaxHP; }
 
 	/** Handles aim inputs from either controls or UI interfaces */
 	virtual void DoAim(float Yaw, float Pitch) override;
@@ -245,6 +262,47 @@ public:
 	/** Returns true when enough enemy-destroy charge is available to activate Ultimate. */
 	UFUNCTION(BlueprintPure, Category="Ultimate")
 	bool IsUltimateCharged() const { return UltimateEnemyCharge >= EnemiesRequiredForUltimate; }
+
+	/** Returns normalized Ultimate charge from 0-1 for progress bars. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	float GetUltimateCharge() const;
+
+	/** Number of enemy kills required for one Ultimate activation. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	int32 GetEnemiesRequiredForUltimate() const { return EnemiesRequiredForUltimate; }
+
+	/** Blueprint-friendly alias for IsUltimateCharged. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	bool IsUltimateReady() const { return IsUltimateCharged(); }
+
+	/** Configured total cooldown duration for the explosive cylinder throw. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	float GetExplosiveCylinderCooldownDuration() const { return ExplosiveCylinderCooldown; }
+
+	/** Normalized cooldown progress where 1 means ready and 0 means just used. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	float GetExplosiveCylinderCooldownPercent() const;
+
+	/** Current sticky cylinder upgrade tier derived from destroyed enemies. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	int32 GetGrenadeLauncherUpgradeLevel() const;
+
+	/** Number of cylinders thrown at the current upgrade tier. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	int32 GetExplosiveCylinderCount() const;
+
+	/** Current active wave from the level enemy spawner, or 0 if none exists. */
+	UFUNCTION(BlueprintPure, Category="Wave")
+	int32 GetCurrentWave() const;
+
+	/** Enemies still alive or waiting to spawn in the current wave. */
+	UFUNCTION(BlueprintPure, Category="Wave")
+	int32 GetEnemiesRemainingInWave() const;
+
+	/** Enemies currently alive in the wave spawner. */
+	UFUNCTION(BlueprintPure, Category="Wave")
+	int32 GetEnemiesAliveInWave() const;
+
 
 public:
 

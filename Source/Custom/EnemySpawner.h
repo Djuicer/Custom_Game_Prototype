@@ -64,6 +64,27 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Placement", meta = (ClampMin = "0.0"))
 	float NavProjectionExtent = 500.0f;
 
+public:
+	/** Current wave number exposed to gameplay UI. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetCurrentWave() const { return CurrentWave; }
+
+	/** Total enemies configured for the active wave. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetEnemiesRequiredThisWave() const { return EnemiesRequiredThisWave; }
+
+	/** Number of enemies spawned so far during the active wave. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetEnemiesSpawnedThisWave() const { return EnemiesSpawnedThisWave; }
+
+	/** Number of valid enemies currently alive. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetAliveEnemyCount() const;
+
+	/** Enemies still alive or waiting to spawn before the active wave is complete. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetEnemiesRemainingInWave() const;
+
 private:
 	FTimerHandle SpawnTimerHandle;
 	FTimerHandle NextWaveTimerHandle;
