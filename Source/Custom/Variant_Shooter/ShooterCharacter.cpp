@@ -7,6 +7,7 @@
 #include "Variant_Shooter/AI/ShooterNPC.h"
 #include "EnhancedInputComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -212,7 +213,8 @@ void AShooterCharacter::DoSwitchWeapon()
 
 void AShooterCharacter::DoThrowStickyExplosive()
 {
-	if (IsDead() || !GetWorld())
+	UWorld* World = GetWorld();
+	if (IsDead() || !World)
 	{
 		return;
 	}
@@ -228,11 +230,10 @@ void AShooterCharacter::DoThrowStickyExplosive()
 		return;
 	}
 
-	if (IsValid(ActiveStickyExplosive))
+	ActiveStickyExplosives.RemoveAll([](const TObjectPtr<AStickyCylinderExplosive>& Explosive)
 	{
-		ActiveStickyExplosive->Destroy();
-		ActiveStickyExplosive = nullptr;
-	}
+		return !IsValid(Explosive.Get());
+	});
 
 	TSubclassOf<AStickyCylinderExplosive> ExplosiveClass = StickyExplosiveClass;
 	if (!ExplosiveClass)
@@ -241,52 +242,102 @@ void AShooterCharacter::DoThrowStickyExplosive()
 	}
 
 	const UCameraComponent* FirstPersonCamera = GetFirstPersonCameraComponent();
-	const FVector ThrowDirection = FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector();
-	const FVector SpawnLocation = (FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation())
-		+ ThrowDirection * StickyExplosiveSpawnDistance;
-	const FRotator SpawnRotation = ThrowDirection.Rotation();
+	const FVector BaseThrowDirection = FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector();
+	const FVector SpawnOrigin = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation();
+	const int32 BurstCount = GetExplosiveCylinderBurstCount();
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = this;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ActiveStickyExplosive = GetWorld()->SpawnActor<AStickyCylinderExplosive>(
-		ExplosiveClass,
-		SpawnLocation,
-		SpawnRotation,
-		SpawnParams
-	);
-
-	if (ActiveStickyExplosive)
+	int32 SpawnedCount = 0;
+	const float CenterIndex = (static_cast<float>(BurstCount) - 1.0f) * 0.5f;
+	for (int32 CylinderIndex = 0; CylinderIndex < BurstCount; ++CylinderIndex)
 	{
-		ActiveStickyExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
-		ActiveStickyExplosive->LaunchInDirection(ThrowDirection);
-		NextExplosiveCylinderThrowTime = GetWorld()->GetTimeSeconds() + ExplosiveCylinderCooldown;
+		const float SpreadMultiplier = static_cast<float>(CylinderIndex) - CenterIndex;
+		const float SpreadYaw = SpreadMultiplier * CylinderSpreadAngle;
+		const FVector ThrowDirection = FRotator(0.0f, SpreadYaw, 0.0f).RotateVector(BaseThrowDirection).GetSafeNormal();
+		const FVector SpawnLocation = SpawnOrigin + ThrowDirection * StickyExplosiveSpawnDistance;
+		const FRotator SpawnRotation = ThrowDirection.Rotation();
+
+		AStickyCylinderExplosive* SpawnedExplosive = World->SpawnActor<AStickyCylinderExplosive>(
+			ExplosiveClass,
+			SpawnLocation,
+			SpawnRotation,
+			SpawnParams
+		);
+
+		if (!SpawnedExplosive)
+		{
+			continue;
+		}
+
+		if (UCapsuleComponent* ExplosiveCollision = SpawnedExplosive->GetCollisionComponent())
+		{
+			ExplosiveCollision->IgnoreActorWhenMoving(this, true);
+		}
+
+		SpawnedExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
+		SpawnedExplosive->LaunchInDirection(ThrowDirection);
+		ActiveStickyExplosives.Add(SpawnedExplosive);
+		++SpawnedCount;
+	}
+
+	if (SpawnedCount > 0)
+	{
+		NextExplosiveCylinderThrowTime = World->GetTimeSeconds() + ExplosiveCylinderCooldown;
 	}
 }
 
 void AShooterCharacter::DoDetonateStickyExplosive()
 {
-	if (IsDead() || !IsValid(ActiveStickyExplosive))
+	if (IsDead())
 	{
 		return;
 	}
 
-	ActiveStickyExplosive->RequestDetonation();
+	TArray<TObjectPtr<AStickyCylinderExplosive>> ExplosivesToDetonate = ActiveStickyExplosives;
+	for (const TObjectPtr<AStickyCylinderExplosive>& ActiveExplosive : ExplosivesToDetonate)
+	{
+		if (IsValid(ActiveExplosive.Get()))
+		{
+			ActiveExplosive->RequestDetonation();
+		}
+	}
+
+	ActiveStickyExplosives.RemoveAll([](const TObjectPtr<AStickyCylinderExplosive>& Explosive)
+	{
+		return !IsValid(Explosive.Get());
+	});
 }
 
 void AShooterCharacter::HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor)
 {
-	if (DestroyedActor == ActiveStickyExplosive)
+	ActiveStickyExplosives.RemoveAll([DestroyedActor](const TObjectPtr<AStickyCylinderExplosive>& Explosive)
 	{
-		ActiveStickyExplosive = nullptr;
-	}
+		return !IsValid(Explosive.Get()) || Explosive.Get() == DestroyedActor;
+	});
 }
 
 bool AShooterCharacter::CanThrowExplosiveCylinder() const
 {
 	return GetExplosiveCylinderCooldownRemaining() <= 0.0f;
+}
+
+int32 AShooterCharacter::GetExplosiveCylinderBurstCount() const
+{
+	if (DestroyedEnemyCount >= FiveCylinderEnemyRequirement)
+	{
+		return FMath::Max(1, FiveCylinderCount);
+	}
+
+	if (DestroyedEnemyCount >= TripleCylinderEnemyRequirement)
+	{
+		return FMath::Max(1, TripleCylinderCount);
+	}
+
+	return FMath::Max(1, DefaultCylinderCount);
 }
 
 float AShooterCharacter::GetExplosiveCylinderCooldownRemaining() const
