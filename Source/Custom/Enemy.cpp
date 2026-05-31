@@ -5,9 +5,11 @@
 
 #include "BrainComponent.h"
 #include "EnemyAIController.h"
+#include "Variant_Shooter/ShooterCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -29,6 +31,8 @@ AEnemy::AEnemy()
 
 void AEnemy::Ragdoll()
 {
+	ReportDestroyedIfNeeded();
+
 	// Cast<AEnemyAIController>(GetController())->BrainComponent->PauseLogic("Ragdolling");
 	SetShieldRaised(false);
 	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
@@ -90,6 +94,13 @@ float AEnemy::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, A
 	return Damage;
 }
 
+void AEnemy::Destroyed()
+{
+	ReportDestroyedIfNeeded();
+
+	Super::Destroyed();
+}
+
 void AEnemy::SetShieldRaised(bool bShouldRaiseShield)
 {
 	bShieldActive = bShouldRaiseShield && !bShieldBroken && ShieldHealth > 0.0f;
@@ -134,6 +145,26 @@ void AEnemy::AttachShieldMesh()
 	ShieldMesh->SetRelativeLocation(ShieldRelativeLocation);
 	ShieldMesh->SetRelativeRotation(ShieldRelativeRotation);
 	ShieldMesh->SetRelativeScale3D(ShieldRelativeScale);
+}
+
+void AEnemy::ReportDestroyedIfNeeded()
+{
+	if (bHasReportedDestroyed)
+	{
+		return;
+	}
+
+	bHasReportedDestroyed = true;
+
+	if (AShooterCharacter* ShooterCharacter = FindShooterCharacterForDeathCredit())
+	{
+		ShooterCharacter->RegisterDestroyedEnemy(this);
+	}
+}
+
+AShooterCharacter* AEnemy::FindShooterCharacterForDeathCredit() const
+{
+	return Cast<AShooterCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
 }
 
 void AEnemy::ApplyShieldVisibility()

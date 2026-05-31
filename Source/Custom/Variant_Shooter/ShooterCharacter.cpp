@@ -3,6 +3,8 @@
 #include "ShooterCharacter.h"
 #include "ShooterWeapon.h"
 #include "StickyCylinderExplosive.h"
+#include "Enemy.h"
+#include "Variant_Shooter/AI/ShooterNPC.h"
 #include "EnhancedInputComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
@@ -215,6 +217,17 @@ void AShooterCharacter::DoThrowStickyExplosive()
 		return;
 	}
 
+	if (!CanThrowExplosiveCylinder())
+	{
+		UE_LOG(
+			LogTemp,
+			Verbose,
+			TEXT("Explosive Cylinder throw blocked by cooldown. Remaining: %.2fs"),
+			GetExplosiveCylinderCooldownRemaining()
+		);
+		return;
+	}
+
 	if (IsValid(ActiveStickyExplosive))
 	{
 		ActiveStickyExplosive->Destroy();
@@ -249,6 +262,7 @@ void AShooterCharacter::DoThrowStickyExplosive()
 	{
 		ActiveStickyExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
 		ActiveStickyExplosive->LaunchInDirection(ThrowDirection);
+		NextExplosiveCylinderThrowTime = GetWorld()->GetTimeSeconds() + ExplosiveCylinderCooldown;
 	}
 }
 
@@ -268,6 +282,69 @@ void AShooterCharacter::HandleActiveStickyExplosiveDestroyed(AActor* DestroyedAc
 	{
 		ActiveStickyExplosive = nullptr;
 	}
+}
+
+bool AShooterCharacter::CanThrowExplosiveCylinder() const
+{
+	return GetExplosiveCylinderCooldownRemaining() <= 0.0f;
+}
+
+float AShooterCharacter::GetExplosiveCylinderCooldownRemaining() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(0.0f, NextExplosiveCylinderThrowTime - World->GetTimeSeconds());
+}
+
+void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
+{
+	if (!DestroyedEnemy || (!DestroyedEnemy->IsA<AEnemy>() && !DestroyedEnemy->IsA<AShooterNPC>()))
+	{
+		return;
+	}
+
+	const TWeakObjectPtr<AActor> DestroyedEnemyKey(DestroyedEnemy);
+	if (CountedDestroyedEnemies.Contains(DestroyedEnemyKey))
+	{
+		return;
+	}
+
+	CountedDestroyedEnemies.Add(DestroyedEnemyKey);
+
+	++DestroyedEnemyCount;
+	++UltimateEnemyCharge;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Enemy destroyed: %s | Total destroyed: %d | Ultimate charge: %d/%d"),
+		*GetNameSafe(DestroyedEnemy),
+		DestroyedEnemyCount,
+		UltimateEnemyCharge,
+		EnemiesRequiredForUltimate
+	);
+}
+
+bool AShooterCharacter::ConsumeUltimateCharge()
+{
+	if (!IsUltimateCharged())
+	{
+		return false;
+	}
+
+	UltimateEnemyCharge -= EnemiesRequiredForUltimate;
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Ultimate charge consumed. Remaining charge: %d/%d"),
+		UltimateEnemyCharge,
+		EnemiesRequiredForUltimate
+	);
+	return true;
 }
 
 void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
@@ -436,6 +513,18 @@ void AShooterCharacter::DoSwitchToUltimate()
 		return;
 	}
 
+	if (!IsUltimateCharged())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Ultimate is not charged yet. Charge: %d/%d"),
+			UltimateEnemyCharge,
+			EnemiesRequiredForUltimate
+		);
+		return;
+	}
+
 	if (!UltimateCharacterClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("UltimateCharacterClass is not set on ShooterCharacter."));
@@ -479,6 +568,12 @@ void AShooterCharacter::DoSwitchToUltimate()
 	if (!NewUltimate)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Failed to spawn Ultimate character."));
+		return;
+	}
+
+	if (!ConsumeUltimateCharge())
+	{
+		NewUltimate->Destroy();
 		return;
 	}
 
