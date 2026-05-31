@@ -17,6 +17,7 @@
 #include "Ultimate.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Blueprint/UserWidget.h"
 
 AShooterCharacter::AShooterCharacter()
 {
@@ -53,6 +54,20 @@ void AShooterCharacter::BeginPlay()
 			PC->PlayerCameraManager->ViewPitchMax = 89.0f;
 		}
 	}
+
+	// Create this character's assigned player HUD only for the locally controlled player pawn.
+	if (!PlayerHUDWidgetInstance && PlayerHUDWidgetClass && IsPlayerControlled() && IsLocallyControlled())
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			PlayerHUDWidgetInstance = CreateWidget<UUserWidget>(PC, PlayerHUDWidgetClass);
+
+			if (PlayerHUDWidgetInstance)
+			{
+				PlayerHUDWidgetInstance->AddToViewport();
+			}
+		}
+	}
 	
 	// update the HUD
 	OnDamaged.Broadcast(1.0f);
@@ -64,6 +79,12 @@ void AShooterCharacter::EndPlay(EEndPlayReason::Type EndPlayReason)
 
 	// clear the respawn timer
 	GetWorld()->GetTimerManager().ClearTimer(RespawnTimer);
+
+	if (PlayerHUDWidgetInstance)
+	{
+		PlayerHUDWidgetInstance->RemoveFromParent();
+		PlayerHUDWidgetInstance = nullptr;
+	}
 }
 
 void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

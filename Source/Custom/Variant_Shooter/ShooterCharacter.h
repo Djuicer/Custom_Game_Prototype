@@ -13,6 +13,7 @@ class UInputAction;
 class UInputComponent;
 class UPawnNoiseEmitterComponent;
 class AUltimate;
+class UUserWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32, MagazineSize, int32, Bullets);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent);
@@ -135,6 +136,14 @@ protected:
 	/** Number of destroyed enemies required to activate Ultimate once. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate", meta = (ClampMin = 1))
 	int32 EnemiesRequiredForUltimate = 10;
+
+	/** Widget Blueprint class used for this player's HUD. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UI")
+	TSubclassOf<UUserWidget> PlayerHUDWidgetClass;
+
+	/** Runtime instance of the player's HUD widget. */
+	UPROPERTY()
+	TObjectPtr<UUserWidget> PlayerHUDWidgetInstance;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Character Switching")
 	TSubclassOf<AUltimate> UltimateCharacterClass;
