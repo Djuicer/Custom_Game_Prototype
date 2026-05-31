@@ -34,7 +34,7 @@ public:
 
 	/** Returns the currently assigned shooter character, if valid. */
 	UFUNCTION(BlueprintPure, Category = "Shooter|Gameplay UI")
-	AShooterCharacter* GetShooterCharacter() const { return ShooterCharacter.Get(); }
+	AShooterCharacter* GetShooterCharacter() const { return OwningShooterCharacter.Get(); }
 
 	/** Updates the displayed current wave number. */
 	UFUNCTION(BlueprintCallable, Category = "Shooter|Gameplay UI")
@@ -151,8 +151,11 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
+	/** Real spawned shooter instance that owns this HUD. Never store class defaults/CDOs here. */
 	UPROPERTY(Transient)
-	TWeakObjectPtr<AShooterCharacter> ShooterCharacter;
+	TObjectPtr<AShooterCharacter> OwningShooterCharacter;
+
+	bool IsValidShooterInstance(const AShooterCharacter* Candidate) const;
 
 	void RefreshWaveText();
 	void RefreshEnemiesRemainingText();

@@ -87,6 +87,11 @@ void AShooterCharacter::InitializeGameplayHUD()
 
 void AShooterCharacter::CreateOrInitializePlayerHUD()
 {
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return;
+	}
+
 	if (!PlayerHUDWidgetClass || !IsPlayerControlled() || !IsLocallyControlled())
 	{
 		return;
@@ -429,6 +434,11 @@ int32 AShooterCharacter::GetExplosiveCylinderCount() const
 
 int32 AShooterCharacter::GetCurrentWave() const
 {
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return 0;
+	}
+
 	TArray<AActor*> Spawners;
 	UGameplayStatics::GetAllActorsOfClass(this, AEnemySpawner::StaticClass(), Spawners);
 
@@ -446,6 +456,11 @@ int32 AShooterCharacter::GetCurrentWave() const
 
 int32 AShooterCharacter::GetEnemiesRemainingInWave() const
 {
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return 0;
+	}
+
 	TArray<AActor*> Spawners;
 	UGameplayStatics::GetAllActorsOfClass(this, AEnemySpawner::StaticClass(), Spawners);
 
@@ -463,6 +478,11 @@ int32 AShooterCharacter::GetEnemiesRemainingInWave() const
 
 int32 AShooterCharacter::GetEnemiesAliveInWave() const
 {
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !GetWorld())
+	{
+		return 0;
+	}
+
 	TArray<AActor*> Spawners;
 	UGameplayStatics::GetAllActorsOfClass(this, AEnemySpawner::StaticClass(), Spawners);
 

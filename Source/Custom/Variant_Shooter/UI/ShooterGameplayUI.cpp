@@ -13,11 +13,12 @@ void UShooterGameplayUI::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (!ShooterCharacter.IsValid())
+	if (!IsValidShooterInstance(OwningShooterCharacter))
 	{
-		if (APawn* OwningPawn = GetOwningPlayerPawn())
+		APawn* OwningPawn = GetOwningPlayerPawn();
+		if (AShooterCharacter* OwningShooter = Cast<AShooterCharacter>(OwningPawn))
 		{
-			InitializeWithPlayer(Cast<AShooterCharacter>(OwningPawn));
+			InitializeWithPlayer(OwningShooter);
 		}
 	}
 
@@ -33,15 +34,23 @@ void UShooterGameplayUI::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 void UShooterGameplayUI::InitializeWithPlayer(AShooterCharacter* InPlayer)
 {
-	ShooterCharacter = InPlayer;
+	OwningShooterCharacter = IsValidShooterInstance(InPlayer) ? InPlayer : nullptr;
 	RefreshUI();
+}
+
+bool UShooterGameplayUI::IsValidShooterInstance(const AShooterCharacter* Candidate) const
+{
+	return IsValid(Candidate)
+		&& !Candidate->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)
+		&& Candidate->GetWorld() != nullptr;
 }
 
 void UShooterGameplayUI::RefreshUI()
 {
-	AShooterCharacter* Player = ShooterCharacter.Get();
-	if (!IsValid(Player))
+	AShooterCharacter* Player = OwningShooterCharacter;
+	if (!IsValidShooterInstance(Player))
 	{
+		OwningShooterCharacter = nullptr;
 		RefreshAllUI();
 		return;
 	}
