@@ -98,6 +98,7 @@ void AShooterPlayerController::OnPossess(APawn* InPawn)
 		);
 
 		ShooterCharacter->Tags.AddUnique(PlayerPawnTag);
+		ShooterCharacter->InitializeGameplayHUD();
 
 		ShooterCharacter->OnBulletCountUpdated.RemoveDynamic(
 			this,

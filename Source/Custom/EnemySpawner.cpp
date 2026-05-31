@@ -37,6 +37,26 @@ void AEnemySpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorldTimerManager().ClearTimer(NextWaveTimerHandle);
 }
 
+int32 AEnemySpawner::GetAliveEnemyCount() const
+{
+	int32 AliveCount = 0;
+	for (const TWeakObjectPtr<ACharacter>& Enemy : AliveEnemies)
+	{
+		if (Enemy.IsValid())
+		{
+			++AliveCount;
+		}
+	}
+
+	return AliveCount;
+}
+
+int32 AEnemySpawner::GetEnemiesRemainingInWave() const
+{
+	const int32 NotYetSpawned = FMath::Max(0, EnemiesRequiredThisWave - EnemiesSpawnedThisWave);
+	return GetAliveEnemyCount() + NotYetSpawned;
+}
+
 void AEnemySpawner::StartWave()
 {
 	EnemiesSpawnedThisWave = 0;
