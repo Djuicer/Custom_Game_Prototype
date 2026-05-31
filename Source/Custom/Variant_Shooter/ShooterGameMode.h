@@ -30,6 +30,10 @@ protected:
 	/** Map of scores by team ID */
 	TMap<uint8, int32> TeamScores;
 
+	int32 GameplayDestroyedEnemyCount = 0;
+	int32 GameplayRemainingEnemiesInWave = 0;
+	int32 GameplayCurrentWave = 1;
+
 protected:
 
 	/** Gameplay initialization */
@@ -39,4 +43,16 @@ public:
 
 	/** Increases the score for the given team */
 	void IncrementTeamScore(uint8 TeamByte);
+
+	/** Updates the gameplay HUD with the lifetime number of destroyed enemies. */
+	void SetDestroyedEnemyCount(int32 NewCount);
+
+	/** Updates the gameplay HUD with the number of enemies remaining in the active wave. */
+	void SetRemainingEnemiesInWave(int32 NewCount);
+
+	/** Updates the gameplay HUD with the active wave number. */
+	void SetCurrentWave(int32 NewWave);
+
+	/** Returns the active shooter UI created by this game mode. */
+	UShooterUI* GetShooterUI() const { return ShooterUI; }
 };

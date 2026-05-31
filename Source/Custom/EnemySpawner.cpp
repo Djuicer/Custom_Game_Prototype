@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Character.h"
+#include "Variant_Shooter/ShooterGameMode.h"
 
 AEnemySpawner::AEnemySpawner()
 {
@@ -42,6 +43,7 @@ void AEnemySpawner::StartWave()
 	EnemiesSpawnedThisWave = 0;
 	EnemiesRequiredThisWave = StartingEnemiesPerWave + ((CurrentWave - 1) * EnemiesAddedPerWave);
 	EnemiesRequiredThisWave = FMath::Max(1, EnemiesRequiredThisWave);
+	UpdateGameplayHUD();
 }
 
 void AEnemySpawner::CheckWaveComplete()
@@ -67,6 +69,7 @@ void AEnemySpawner::CheckWaveComplete()
 void AEnemySpawner::HandleSpawnedEnemyDestroyed(AActor* DestroyedActor)
 {
 	CleanupDeadEnemies();
+	UpdateGameplayHUD();
 	CheckWaveComplete();
 }
 
@@ -76,6 +79,24 @@ void AEnemySpawner::CleanupDeadEnemies()
 	{
 		return !Enemy.IsValid();
 	});
+}
+
+int32 AEnemySpawner::GetRemainingEnemiesInCurrentWave() const
+{
+	const int32 DefeatedThisWave = EnemiesSpawnedThisWave - AliveEnemies.Num();
+	return FMath::Max(0, EnemiesRequiredThisWave - DefeatedThisWave);
+}
+
+void AEnemySpawner::UpdateGameplayHUD() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (AShooterGameMode* GM = Cast<AShooterGameMode>(World->GetAuthGameMode()))
+		{
+			GM->SetCurrentWave(CurrentWave);
+			GM->SetRemainingEnemiesInWave(GetRemainingEnemiesInCurrentWave());
+		}
+	}
 }
 
 void AEnemySpawner::TrySpawnWave()
@@ -122,6 +143,7 @@ void AEnemySpawner::TrySpawnWave()
 		}
 	}
 
+	UpdateGameplayHUD();
 	CheckWaveComplete();
 }
 
