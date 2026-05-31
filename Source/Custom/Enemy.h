@@ -9,6 +9,8 @@
 class UStaticMeshComponent;
 class AShooterCharacter;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnemyDefeatedDelegate, AActor*, DefeatedEnemy);
+
 UCLASS()
 class CUSTOM_API AEnemy : public ACharacter
 {
@@ -17,6 +19,10 @@ class CUSTOM_API AEnemy : public ACharacter
 public:
 	// Sets default values for this character's properties
 	AEnemy();
+
+	/** Broadcasts immediately when this enemy is defeated, before delayed ragdoll cleanup destroys the actor. */
+	UPROPERTY(BlueprintAssignable, Category = "Enemy|Death")
+	FEnemyDefeatedDelegate OnEnemyDefeated;
 	
 	UFUNCTION(BlueprintCallable)
 	void Ragdoll();

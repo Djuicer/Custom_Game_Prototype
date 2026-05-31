@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "EnemySpawner.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEnemyWaveStatsUpdatedDelegate, int32, CurrentWave, int32, EnemiesRemaining);
+
 class ACharacter;
 class AActor;
 
@@ -14,6 +16,18 @@ class CUSTOM_API AEnemySpawner : public AActor
 
 public:
 	AEnemySpawner();
+
+	/** Broadcasts whenever the current wave number or remaining enemy count changes. */
+	UPROPERTY(BlueprintAssignable, Category = "Spawner|Waves")
+	FEnemyWaveStatsUpdatedDelegate OnWaveStatsUpdated;
+
+	/** Current wave number. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetCurrentWave() const { return CurrentWave; }
+
+	/** Enemies not yet defeated in the active wave, including alive and not-yet-spawned enemies. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetEnemiesRemainingInCurrentWave() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -73,8 +87,12 @@ private:
 
 	void StartWave();
 	void CheckWaveComplete();
+	void BroadcastWaveStats();
 	UFUNCTION()
 	void HandleSpawnedEnemyDestroyed(AActor* DestroyedActor);
+
+	UFUNCTION()
+	void HandleSpawnedEnemyDefeated(AActor* DefeatedEnemy);
 
 	void TrySpawnWave();
 	void CleanupDeadEnemies();

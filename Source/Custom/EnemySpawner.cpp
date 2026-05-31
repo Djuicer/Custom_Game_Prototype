@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Character.h"
+#include "Enemy.h"
 
 AEnemySpawner::AEnemySpawner()
 {
@@ -42,6 +43,8 @@ void AEnemySpawner::StartWave()
 	EnemiesSpawnedThisWave = 0;
 	EnemiesRequiredThisWave = StartingEnemiesPerWave + ((CurrentWave - 1) * EnemiesAddedPerWave);
 	EnemiesRequiredThisWave = FMath::Max(1, EnemiesRequiredThisWave);
+
+	BroadcastWaveStats();
 }
 
 void AEnemySpawner::CheckWaveComplete()
@@ -67,6 +70,18 @@ void AEnemySpawner::CheckWaveComplete()
 void AEnemySpawner::HandleSpawnedEnemyDestroyed(AActor* DestroyedActor)
 {
 	CleanupDeadEnemies();
+	BroadcastWaveStats();
+	CheckWaveComplete();
+}
+
+void AEnemySpawner::HandleSpawnedEnemyDefeated(AActor* DefeatedEnemy)
+{
+	AliveEnemies.RemoveAll([DefeatedEnemy](const TWeakObjectPtr<ACharacter>& Enemy)
+	{
+		return !Enemy.IsValid() || Enemy.Get() == DefeatedEnemy;
+	});
+
+	BroadcastWaveStats();
 	CheckWaveComplete();
 }
 
@@ -76,6 +91,17 @@ void AEnemySpawner::CleanupDeadEnemies()
 	{
 		return !Enemy.IsValid();
 	});
+}
+
+int32 AEnemySpawner::GetEnemiesRemainingInCurrentWave() const
+{
+	const int32 DefeatedThisWave = EnemiesSpawnedThisWave - AliveEnemies.Num();
+	return FMath::Max(0, EnemiesRequiredThisWave - DefeatedThisWave);
+}
+
+void AEnemySpawner::BroadcastWaveStats()
+{
+	OnWaveStatsUpdated.Broadcast(CurrentWave, GetEnemiesRemainingInCurrentWave());
 }
 
 void AEnemySpawner::TrySpawnWave()
@@ -117,11 +143,18 @@ void AEnemySpawner::TrySpawnWave()
 		{
 			SpawnedEnemy->SpawnDefaultController();
 			SpawnedEnemy->OnDestroyed.AddDynamic(this, &AEnemySpawner::HandleSpawnedEnemyDestroyed);
+
+			if (AEnemy* Enemy = Cast<AEnemy>(SpawnedEnemy))
+			{
+				Enemy->OnEnemyDefeated.AddDynamic(this, &AEnemySpawner::HandleSpawnedEnemyDefeated);
+			}
+
 			AliveEnemies.Add(SpawnedEnemy);
 			EnemiesSpawnedThisWave++;
 		}
 	}
 
+	BroadcastWaveStats();
 	CheckWaveComplete();
 }
 
