@@ -39,4 +39,19 @@ public:
 
 	/** Increases the score for the given team */
 	void IncrementTeamScore(uint8 TeamByte);
+
+	/** Updates the displayed destroyed enemy score. */
+	void SetDestroyedEnemyCount(int32 NewCount);
+
+	/** Updates the displayed remaining enemies for the active wave. */
+	void SetRemainingEnemiesInWave(int32 NewCount);
+
+	/** Updates the displayed current wave number. */
+	void SetCurrentWave(int32 NewWave);
+
+	/** Updates both displayed wave values together. */
+	void SetWaveInfo(int32 NewWave, int32 RemainingEnemies);
+
+	/** Returns the spawned shooter UI, if one is available. */
+	UShooterUI* GetShooterUI() const { return ShooterUI; }
 };
