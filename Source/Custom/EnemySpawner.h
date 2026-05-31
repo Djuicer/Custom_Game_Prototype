@@ -76,6 +76,9 @@ private:
 	UFUNCTION()
 	void HandleSpawnedEnemyDestroyed(AActor* DestroyedActor);
 
+	int32 GetRemainingEnemiesInCurrentWave() const;
+	void UpdateGameplayHUD() const;
+
 	void TrySpawnWave();
 	void CleanupDeadEnemies();
 	bool TryGetSpawnLocation(FVector& OutSpawnLocation) const;
