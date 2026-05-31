@@ -228,11 +228,16 @@ void AShooterCharacter::DoThrowStickyExplosive()
 		return;
 	}
 
-	if (IsValid(ActiveStickyExplosive))
+	const TArray<TObjectPtr<AStickyCylinderExplosive>> StickyExplosivesToDestroy = ActiveStickyExplosives;
+	for (AStickyCylinderExplosive* StickyExplosive : StickyExplosivesToDestroy)
 	{
-		ActiveStickyExplosive->Destroy();
-		ActiveStickyExplosive = nullptr;
+		if (IsValid(StickyExplosive))
+		{
+			StickyExplosive->Destroy();
+		}
 	}
+	ActiveStickyExplosives.Reset();
+	ActiveStickyExplosive = nullptr;
 
 	TSubclassOf<AStickyCylinderExplosive> ExplosiveClass = StickyExplosiveClass;
 	if (!ExplosiveClass)
@@ -240,47 +245,73 @@ void AShooterCharacter::DoThrowStickyExplosive()
 		ExplosiveClass = AStickyCylinderExplosive::StaticClass();
 	}
 
+	const int32 CylinderCount = DestroyedEnemyCount >= 10 ? 5 : (DestroyedEnemyCount >= 5 ? 3 : 1);
 	const UCameraComponent* FirstPersonCamera = GetFirstPersonCameraComponent();
-	const FVector ThrowDirection = FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector();
-	const FVector SpawnLocation = (FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation())
-		+ ThrowDirection * StickyExplosiveSpawnDistance;
-	const FRotator SpawnRotation = ThrowDirection.Rotation();
+	const FRotator BaseRotation = FirstPersonCamera ? FirstPersonCamera->GetComponentRotation() : GetControlRotation();
+	const FVector BaseLocation = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation();
+	const FVector RightVector = BaseRotation.RotateVector(FVector::RightVector);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = this;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ActiveStickyExplosive = GetWorld()->SpawnActor<AStickyCylinderExplosive>(
-		ExplosiveClass,
-		SpawnLocation,
-		SpawnRotation,
-		SpawnParams
-	);
-
-	if (ActiveStickyExplosive)
+	for (int32 CylinderIndex = 0; CylinderIndex < CylinderCount; ++CylinderIndex)
 	{
-		ActiveStickyExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
-		ActiveStickyExplosive->LaunchInDirection(ThrowDirection);
+		const float SpreadStep = static_cast<float>(CylinderIndex) - (static_cast<float>(CylinderCount - 1) * 0.5f);
+		const float AngleOffset = SpreadStep * CylinderSpreadAngle;
+		const FRotator SpreadRotation = BaseRotation + FRotator(0.0f, AngleOffset, 0.0f);
+		const FVector SpreadDirection = SpreadRotation.Vector();
+		const FVector SpawnLocation = BaseLocation
+			+ SpreadDirection * StickyExplosiveSpawnDistance
+			+ RightVector * (SpreadStep * CylinderSpawnSideOffset);
+
+		AStickyCylinderExplosive* SpawnedExplosive = GetWorld()->SpawnActor<AStickyCylinderExplosive>(
+			ExplosiveClass,
+			SpawnLocation,
+			SpreadRotation,
+			SpawnParams
+		);
+
+		if (SpawnedExplosive)
+		{
+			SpawnedExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
+			SpawnedExplosive->LaunchInDirection(SpreadDirection);
+			ActiveStickyExplosives.Add(SpawnedExplosive);
+			ActiveStickyExplosive = SpawnedExplosive;
+		}
+	}
+
+	if (!ActiveStickyExplosives.IsEmpty())
+	{
 		NextExplosiveCylinderThrowTime = GetWorld()->GetTimeSeconds() + ExplosiveCylinderCooldown;
 	}
 }
 
 void AShooterCharacter::DoDetonateStickyExplosive()
 {
-	if (IsDead() || !IsValid(ActiveStickyExplosive))
+	if (IsDead())
 	{
 		return;
 	}
 
-	ActiveStickyExplosive->RequestDetonation();
+	const TArray<TObjectPtr<AStickyCylinderExplosive>> StickyExplosivesToDetonate = ActiveStickyExplosives;
+	for (AStickyCylinderExplosive* StickyExplosive : StickyExplosivesToDetonate)
+	{
+		if (IsValid(StickyExplosive))
+		{
+			StickyExplosive->RequestDetonation();
+		}
+	}
 }
 
 void AShooterCharacter::HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor)
 {
+	ActiveStickyExplosives.Remove(Cast<AStickyCylinderExplosive>(DestroyedActor));
+
 	if (DestroyedActor == ActiveStickyExplosive)
 	{
-		ActiveStickyExplosive = nullptr;
+		ActiveStickyExplosive = ActiveStickyExplosives.IsEmpty() ? nullptr : ActiveStickyExplosives.Last();
 	}
 }
 
