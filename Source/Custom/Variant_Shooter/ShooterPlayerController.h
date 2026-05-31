@@ -9,6 +9,8 @@
 class UInputMappingContext;
 class AShooterCharacter;
 class UShooterBulletCounterUI;
+class UShooterHUDWidget;
+class AEnemySpawner;
 
 /**
  *  Simple PlayerController for a first person shooter game
@@ -46,9 +48,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Shooter|Respawn")
 	TSubclassOf<AShooterCharacter> CharacterClass;
 
-	/** Type of bullet counter UI widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Shooter|UI")
+	/** Type of bullet counter UI widget to spawn (legacy HUD). */
+	UPROPERTY(EditAnywhere, Category="Shooter|UI|Legacy")
 	TSubclassOf<UShooterBulletCounterUI> BulletCounterUIClass;
+
+	/** If true, spawn the legacy bullet/health HUD. Disabled by default so the clean HUD is the only gameplay HUD. */
+	UPROPERTY(EditAnywhere, Category="Shooter|UI|Legacy")
+	bool bSpawnLegacyBulletCounterUI = false;
+
+	/** Type of clean gameplay HUD widget to spawn. Uses the native C++ UMG layout if no Blueprint subclass is assigned. */
+	UPROPERTY(EditAnywhere, Category="Shooter|UI")
+	TSubclassOf<UShooterHUDWidget> ShooterHUDWidgetClass;
 
 	/** Tag to grant the possessed pawn to flag it as the player */
 	UPROPERTY(EditAnywhere, Category="Shooter|Player")
@@ -57,6 +67,14 @@ protected:
 	/** Pointer to the bullet counter UI widget */
 	UPROPERTY()
 	TObjectPtr<UShooterBulletCounterUI> BulletCounterUI;
+
+	/** Pointer to the clean gameplay HUD widget. */
+	UPROPERTY()
+	TObjectPtr<UShooterHUDWidget> ShooterHUDWidget;
+
+	/** Wave spawner currently driving the HUD. */
+	UPROPERTY()
+	TObjectPtr<AEnemySpawner> BoundEnemySpawner;
 
 protected:
 
@@ -81,6 +99,22 @@ protected:
 	UFUNCTION()
 	void OnPawnDamaged(float LifePercent);
 
+	UFUNCTION()
+	void OnPawnHealthChanged(float CurrentHealth, float MaxHealth);
+
+	UFUNCTION()
+	void OnDestroyedEnemyCountChanged(int32 DestroyedEnemyCount);
+
+	UFUNCTION()
+	void OnWaveChanged(int32 CurrentWave);
+
+	UFUNCTION()
+	void OnEnemiesRemainingChanged(int32 EnemiesRemaining);
+
 	/** Returns true if the player should use UMG touch controls */
 	bool ShouldUseTouchControls() const;
+
+	void CreateShooterHUD();
+	void BindShooterHUDToSpawner();
+	void InitializeShooterHUDFromPawn(AShooterCharacter* ShooterCharacter);
 };

@@ -16,6 +16,8 @@ class AUltimate;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32, MagazineSize, int32, Bullets);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHealthChangedDelegate, float, CurrentHealth, float, MaxHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDestroyedEnemyCountChangedDelegate, int32, DestroyedEnemyCount);
 
 /**
  *  A player controllable first person shooter character
@@ -150,6 +152,12 @@ public:
 
 	/** Damaged delegate */
 	FDamagedDelegate OnDamaged;
+
+	/** Full health values changed delegate for gameplay HUD widgets. */
+	FHealthChangedDelegate OnHealthChanged;
+
+	/** Destroyed enemy score changed delegate for gameplay HUD widgets. */
+	FDestroyedEnemyCountChangedDelegate OnDestroyedEnemyCountChanged;
 	
 	void HideForUltimateMode();
 	void RestoreAfterUltimateMode();
@@ -228,6 +236,14 @@ public:
 	/** Lifetime number of enemies destroyed. */
 	UFUNCTION(BlueprintPure, Category="Ultimate")
 	int32 GetDestroyedEnemyCount() const { return DestroyedEnemyCount; }
+
+	/** Current HP remaining to this character. */
+	UFUNCTION(BlueprintPure, Category="Health")
+	float GetCurrentHealth() const { return CurrentHP; }
+
+	/** Max HP this character can have. */
+	UFUNCTION(BlueprintPure, Category="Health")
+	float GetMaxHealth() const { return MaxHP; }
 
 	/** Current enemy-destroy charge available for Ultimate. */
 	UFUNCTION(BlueprintPure, Category="Ultimate")

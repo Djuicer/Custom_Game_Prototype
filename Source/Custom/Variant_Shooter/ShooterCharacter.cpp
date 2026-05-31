@@ -35,6 +35,7 @@ void AShooterCharacter::BeginPlay()
 
 	// reset HP to max
 	CurrentHP = MaxHP;
+	OnHealthChanged.Broadcast(CurrentHP, MaxHP);
 
 	if (DefaultWeaponClass)
 	{
@@ -120,7 +121,8 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 	}
 
 	// update the HUD
-	OnDamaged.Broadcast(FMath::Max(0.0f, CurrentHP / MaxHP));
+	OnDamaged.Broadcast(MaxHP > 0.0f ? FMath::Max(0.0f, CurrentHP / MaxHP) : 0.0f);
+	OnHealthChanged.Broadcast(CurrentHP, MaxHP);
 
 	return Damage;
 }
@@ -348,6 +350,7 @@ void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
 
 	++DestroyedEnemyCount;
 	++UltimateEnemyCharge;
+	OnDestroyedEnemyCountChanged.Broadcast(DestroyedEnemyCount);
 
 	UE_LOG(
 		LogTemp,

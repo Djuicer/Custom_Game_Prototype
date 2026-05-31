@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "Enemy.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEnemyDefeatedDelegate);
+
 class UStaticMeshComponent;
 class AShooterCharacter;
 
@@ -17,6 +19,10 @@ class CUSTOM_API AEnemy : public ACharacter
 public:
 	// Sets default values for this character's properties
 	AEnemy();
+
+	/** Broadcast once when this enemy is defeated, before delayed ragdoll cleanup destroys the actor. */
+	UPROPERTY(BlueprintAssignable, Category = "Enemy|Death")
+	FEnemyDefeatedDelegate OnEnemyDefeated;
 	
 	UFUNCTION(BlueprintCallable)
 	void Ragdoll();
