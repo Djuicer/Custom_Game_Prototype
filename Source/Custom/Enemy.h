@@ -7,6 +7,7 @@
 #include "Enemy.generated.h"
 
 class UStaticMeshComponent;
+class AShooterCharacter;
 
 UCLASS()
 class CUSTOM_API AEnemy : public ACharacter
@@ -27,6 +28,8 @@ public:
 	void DealDamage(float Damage);
 
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	virtual void Destroyed() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy|Shield")
 	void SetShieldRaised(bool bShouldRaiseShield);
@@ -74,6 +77,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Shield")
 	bool bShieldBroken = false;
 
+	/** True after this enemy has contributed to the player's destroyed-enemy counter. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Death")
+	bool bHasReportedDestroyed = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Shield|Attachment")
 	FName ShieldAttachSocket = TEXT("hand_lSocket");
 
@@ -95,6 +102,8 @@ protected:
 private:
 	void AttachShieldMesh();
 	void ApplyShieldVisibility();
+	void ReportDestroyedIfNeeded();
+	AShooterCharacter* FindShooterCharacterForDeathCredit() const;
 
 public:	
 	// Called every frame

@@ -8,9 +8,11 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
 #include "ShooterGameMode.h"
+#include "Variant_Shooter/ShooterCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
 
 void AShooterNPC::BeginPlay()
 {
@@ -31,6 +33,13 @@ void AShooterNPC::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	// clear the death timer
 	GetWorld()->GetTimerManager().ClearTimer(DeathTimer);
+}
+
+void AShooterNPC::Destroyed()
+{
+	ReportDestroyedIfNeeded();
+
+	Super::Destroyed();
 }
 
 float AShooterNPC::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -159,6 +168,8 @@ void AShooterNPC::Die()
 	// raise the dead flag
 	bIsDead = true;
 
+	ReportDestroyedIfNeeded();
+
 	// grant the death tag to the character
 	Tags.Add(DeathTag);
 
@@ -190,6 +201,26 @@ void AShooterNPC::Die()
 void AShooterNPC::DeferredDestruction()
 {
 	Destroy();
+}
+
+void AShooterNPC::ReportDestroyedIfNeeded()
+{
+	if (bHasReportedDestroyed)
+	{
+		return;
+	}
+
+	bHasReportedDestroyed = true;
+
+	if (AShooterCharacter* ShooterCharacter = FindShooterCharacterForDeathCredit())
+	{
+		ShooterCharacter->RegisterDestroyedEnemy(this);
+	}
+}
+
+AShooterCharacter* AShooterNPC::FindShooterCharacterForDeathCredit() const
+{
+	return Cast<AShooterCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
 }
 
 void AShooterNPC::StartShooting(AActor* ActorToShoot)

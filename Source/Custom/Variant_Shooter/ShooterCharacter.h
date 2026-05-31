@@ -101,11 +101,35 @@ protected:
 	/** Distance in front of the first-person camera used to spawn the sticky explosive. */
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
 	float StickyExplosiveSpawnDistance = 100.0f;
+
+	/** Seconds before another sticky cylinder explosive can be thrown. Cooldown starts when a throw succeeds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "s"))
+	float ExplosiveCylinderCooldown = 3.0f;
+
+	/** World time when the next sticky cylinder explosive throw is allowed. */
+	float NextExplosiveCylinderThrowTime = 0.0f;
+
+	/** Lifetime number of enemy actors that have reported death/destruction to this player. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ultimate")
+	int32 DestroyedEnemyCount = 0;
+
+	/** Enemy actors already credited, so duplicate Blueprint/native death notifications cannot double-charge Ultimate. */
+	TSet<TWeakObjectPtr<AActor>> CountedDestroyedEnemies;
+
+	/** Enemy-destroy charge currently available for Ultimate activation. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ultimate")
+	int32 UltimateEnemyCharge = 0;
+
+	/** Number of destroyed enemies required to activate Ultimate once. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate", meta = (ClampMin = 1))
+	int32 EnemiesRequiredForUltimate = 10;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Character Switching")
 	TSubclassOf<AUltimate> UltimateCharacterClass;
 
 	void DoSwitchToUltimate();
+
+	bool ConsumeUltimateCharge();
 
 public:
 
@@ -176,6 +200,30 @@ public:
 	/** Clears the active sticky explosive reference when it detonates or is otherwise destroyed. */
 	UFUNCTION()
 	void HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor);
+
+	/** Returns true when Shift can throw another explosive cylinder. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	bool CanThrowExplosiveCylinder() const;
+
+	/** Returns seconds remaining before another explosive cylinder can be thrown. */
+	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
+	float GetExplosiveCylinderCooldownRemaining() const;
+
+	/** Records exactly one enemy death/destruction notification. Exposed for enemy Blueprint death hooks if needed. */
+	UFUNCTION(BlueprintCallable, Category="Ultimate")
+	void RegisterDestroyedEnemy(AActor* DestroyedEnemy);
+
+	/** Lifetime number of enemies destroyed. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	int32 GetDestroyedEnemyCount() const { return DestroyedEnemyCount; }
+
+	/** Current enemy-destroy charge available for Ultimate. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	int32 GetUltimateEnemyCharge() const { return UltimateEnemyCharge; }
+
+	/** Returns true when enough enemy-destroy charge is available to activate Ultimate. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	bool IsUltimateCharged() const { return UltimateEnemyCharge >= EnemiesRequiredForUltimate; }
 
 public:
 

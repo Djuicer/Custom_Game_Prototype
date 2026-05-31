@@ -10,6 +10,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPawnDeathDelegate);
 
 class AShooterWeapon;
+class AShooterCharacter;
 
 /**
  *  A simple AI-controlled shooter game NPC
@@ -85,6 +86,10 @@ protected:
 	/** If true, this character has already died */
 	bool bIsDead = false;
 
+	/** True after this NPC has contributed to the player's destroyed-enemy counter. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Damage")
+	bool bHasReportedDestroyed = false;
+
 	/** Deferred destruction on death timer */
 	FTimerHandle DeathTimer;
 
@@ -100,6 +105,8 @@ protected:
 
 	/** Gameplay cleanup */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	virtual void Destroyed() override;
 
 public:
 
@@ -146,6 +153,11 @@ protected:
 
 	/** Called after death to destroy the actor */
 	void DeferredDestruction();
+
+	/** Reports this NPC death/destruction exactly once for Ultimate charging. */
+	void ReportDestroyedIfNeeded();
+
+	AShooterCharacter* FindShooterCharacterForDeathCredit() const;
 
 public:
 
