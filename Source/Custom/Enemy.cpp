@@ -155,6 +155,7 @@ void AEnemy::ReportDestroyedIfNeeded()
 	}
 
 	bHasReportedDestroyed = true;
+	OnEnemyDefeated.Broadcast();
 
 	if (AShooterCharacter* ShooterCharacter = FindShooterCharacterForDeathCredit())
 	{

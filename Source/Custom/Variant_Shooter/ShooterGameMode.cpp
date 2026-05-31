@@ -10,9 +10,15 @@ void AShooterGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// create the UI
-	ShooterUI = CreateWidget<UShooterUI>(UGameplayStatics::GetPlayerController(GetWorld(), 0), ShooterUIClass);
-	ShooterUI->AddToViewport(0);
+	if (bSpawnLegacyShooterUI && ShooterUIClass)
+	{
+		// create the legacy score UI only when explicitly enabled
+		ShooterUI = CreateWidget<UShooterUI>(UGameplayStatics::GetPlayerController(GetWorld(), 0), ShooterUIClass);
+		if (ShooterUI)
+		{
+			ShooterUI->AddToViewport(0);
+		}
+	}
 }
 
 void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
@@ -28,6 +34,9 @@ void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
 	++Score;
 	TeamScores.Add(TeamByte, Score);
 
-	// update the UI
-	ShooterUI->BP_UpdateScore(TeamByte, Score);
+	// update the legacy UI if it is enabled
+	if (ShooterUI)
+	{
+		ShooterUI->BP_UpdateScore(TeamByte, Score);
+	}
 }

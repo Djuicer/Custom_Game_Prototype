@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Character.h"
+#include "Enemy.h"
+#include "Variant_Shooter/AI/ShooterNPC.h"
 
 AEnemySpawner::AEnemySpawner()
 {
@@ -40,8 +42,10 @@ void AEnemySpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AEnemySpawner::StartWave()
 {
 	EnemiesSpawnedThisWave = 0;
+	EnemiesDefeatedThisWave = 0;
 	EnemiesRequiredThisWave = StartingEnemiesPerWave + ((CurrentWave - 1) * EnemiesAddedPerWave);
 	EnemiesRequiredThisWave = FMath::Max(1, EnemiesRequiredThisWave);
+	BroadcastWaveHUDState();
 }
 
 void AEnemySpawner::CheckWaveComplete()
@@ -67,6 +71,13 @@ void AEnemySpawner::CheckWaveComplete()
 void AEnemySpawner::HandleSpawnedEnemyDestroyed(AActor* DestroyedActor)
 {
 	CleanupDeadEnemies();
+	CheckWaveComplete();
+}
+
+void AEnemySpawner::HandleSpawnedEnemyDefeated()
+{
+	EnemiesDefeatedThisWave = FMath::Clamp(EnemiesDefeatedThisWave + 1, 0, EnemiesRequiredThisWave);
+	BroadcastWaveHUDState();
 	CheckWaveComplete();
 }
 
@@ -117,12 +128,33 @@ void AEnemySpawner::TrySpawnWave()
 		{
 			SpawnedEnemy->SpawnDefaultController();
 			SpawnedEnemy->OnDestroyed.AddDynamic(this, &AEnemySpawner::HandleSpawnedEnemyDestroyed);
+			if (AEnemy* Enemy = Cast<AEnemy>(SpawnedEnemy))
+			{
+				Enemy->OnEnemyDefeated.AddDynamic(this, &AEnemySpawner::HandleSpawnedEnemyDefeated);
+			}
+			else if (AShooterNPC* ShooterNPC = Cast<AShooterNPC>(SpawnedEnemy))
+			{
+				ShooterNPC->OnPawnDeath.AddDynamic(this, &AEnemySpawner::HandleSpawnedEnemyDefeated);
+			}
+
 			AliveEnemies.Add(SpawnedEnemy);
 			EnemiesSpawnedThisWave++;
+			BroadcastWaveHUDState();
 		}
 	}
 
 	CheckWaveComplete();
+}
+
+int32 AEnemySpawner::GetEnemiesRemainingInWave() const
+{
+	return FMath::Max(0, EnemiesRequiredThisWave - EnemiesDefeatedThisWave);
+}
+
+void AEnemySpawner::BroadcastWaveHUDState()
+{
+	OnWaveChanged.Broadcast(CurrentWave);
+	OnEnemiesRemainingChanged.Broadcast(GetEnemiesRemainingInWave());
 }
 
 bool AEnemySpawner::TryGetSpawnLocation(FVector& OutSpawnLocation) const

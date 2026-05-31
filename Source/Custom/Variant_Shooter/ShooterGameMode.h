@@ -20,9 +20,13 @@ class CUSTOM_API AShooterGameMode : public AGameModeBase
 	
 protected:
 
-	/** Type of UI widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Shooter")
+	/** Type of legacy scoreboard UI widget to spawn. Disabled by default because AShooterPlayerController owns the clean HUD. */
+	UPROPERTY(EditAnywhere, Category="Shooter|Legacy UI")
 	TSubclassOf<UShooterUI> ShooterUIClass;
+
+	/** If true, spawn the legacy ShooterUI scoreboard in addition to the clean gameplay HUD. */
+	UPROPERTY(EditAnywhere, Category="Shooter|Legacy UI")
+	bool bSpawnLegacyShooterUI = false;
 
 	/** Pointer to the UI widget */
 	TObjectPtr<UShooterUI> ShooterUI;

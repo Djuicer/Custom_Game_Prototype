@@ -4,6 +4,9 @@
 #include "GameFramework/Actor.h"
 #include "EnemySpawner.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWaveChangedDelegate, int32, CurrentWave);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnemiesRemainingChangedDelegate, int32, EnemiesRemaining);
+
 class ACharacter;
 class AActor;
 
@@ -14,6 +17,20 @@ class CUSTOM_API AEnemySpawner : public AActor
 
 public:
 	AEnemySpawner();
+
+	/** Broadcast when a new wave starts. */
+	UPROPERTY(BlueprintAssignable, Category = "Spawner|HUD")
+	FWaveChangedDelegate OnWaveChanged;
+
+	/** Broadcast when the number of enemies remaining in the active wave changes. */
+	UPROPERTY(BlueprintAssignable, Category = "Spawner|HUD")
+	FEnemiesRemainingChangedDelegate OnEnemiesRemainingChanged;
+
+	UFUNCTION(BlueprintPure, Category = "Spawner|HUD")
+	int32 GetCurrentWave() const { return CurrentWave; }
+
+	UFUNCTION(BlueprintPure, Category = "Spawner|HUD")
+	int32 GetEnemiesRemainingInWave() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -70,13 +87,18 @@ private:
 	TArray<TWeakObjectPtr<ACharacter>> AliveEnemies;
 	int32 EnemiesSpawnedThisWave = 0;
 	int32 EnemiesRequiredThisWave = 0;
+	int32 EnemiesDefeatedThisWave = 0;
 
 	void StartWave();
 	void CheckWaveComplete();
 	UFUNCTION()
 	void HandleSpawnedEnemyDestroyed(AActor* DestroyedActor);
 
+	UFUNCTION()
+	void HandleSpawnedEnemyDefeated();
+
 	void TrySpawnWave();
 	void CleanupDeadEnemies();
 	bool TryGetSpawnLocation(FVector& OutSpawnLocation) const;
+	void BroadcastWaveHUDState();
 };

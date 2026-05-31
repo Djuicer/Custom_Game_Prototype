@@ -19,6 +19,7 @@ public class Custom : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
+			"SlateCore",
 			"NavigationSystem",
 			"AIModule",
 			"GameplayTasks"

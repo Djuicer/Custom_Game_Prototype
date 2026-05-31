@@ -9,8 +9,11 @@
 #include "GameFramework/PlayerStart.h"
 #include "ShooterCharacter.h"
 #include "ShooterBulletCounterUI.h"
+#include "Variant_Shooter/UI/ShooterHUDWidget.h"
+#include "EnemySpawner.h"
 #include "Custom.h"
 #include "Widgets/Input/SVirtualJoystick.h"
+#include "EngineUtils.h"
 
 void AShooterPlayerController::BeginPlay()
 {
@@ -36,17 +39,23 @@ void AShooterPlayerController::BeginPlay()
 			}
 		}
 
-		// create the bullet counter widget and add it to the screen
-		BulletCounterUI = CreateWidget<UShooterBulletCounterUI>(this, BulletCounterUIClass);
+		CreateShooterHUD();
+		BindShooterHUDToSpawner();
 
-		if (BulletCounterUI)
+		if (bSpawnLegacyBulletCounterUI)
 		{
-			BulletCounterUI->AddToPlayerScreen(0);
+			// create the legacy bullet counter widget and add it to the screen only when explicitly enabled
+			BulletCounterUI = CreateWidget<UShooterBulletCounterUI>(this, BulletCounterUIClass);
 
-		} else {
+			if (BulletCounterUI)
+			{
+				BulletCounterUI->AddToPlayerScreen(0);
 
-			UE_LOG(LogCustom, Error, TEXT("Could not spawn bullet counter widget."));
+			} else {
 
+				UE_LOG(LogCustom, Error, TEXT("Could not spawn legacy bullet counter widget."));
+
+			}
 		}
 		
 	}
@@ -119,6 +128,27 @@ void AShooterPlayerController::OnPossess(APawn* InPawn)
 			&AShooterPlayerController::OnPawnDamaged
 		);
 
+		ShooterCharacter->OnHealthChanged.RemoveDynamic(
+			this,
+			&AShooterPlayerController::OnPawnHealthChanged
+		);
+
+		ShooterCharacter->OnHealthChanged.AddDynamic(
+			this,
+			&AShooterPlayerController::OnPawnHealthChanged
+		);
+
+		ShooterCharacter->OnDestroyedEnemyCountChanged.RemoveDynamic(
+			this,
+			&AShooterPlayerController::OnDestroyedEnemyCountChanged
+		);
+
+		ShooterCharacter->OnDestroyedEnemyCountChanged.AddDynamic(
+			this,
+			&AShooterPlayerController::OnDestroyedEnemyCountChanged
+		);
+
+		InitializeShooterHUDFromPawn(ShooterCharacter);
 		ShooterCharacter->OnDamaged.Broadcast(1.0f);
 	}
 }
@@ -193,6 +223,102 @@ void AShooterPlayerController::OnPawnDamaged(float LifePercent)
 	{
 		BulletCounterUI->BP_Damaged(LifePercent);
 	}
+}
+
+
+void AShooterPlayerController::OnPawnHealthChanged(float CurrentHealth, float MaxHealth)
+{
+	if (IsValid(ShooterHUDWidget))
+	{
+		ShooterHUDWidget->SetPlayerHealth(CurrentHealth, MaxHealth);
+	}
+}
+
+void AShooterPlayerController::OnDestroyedEnemyCountChanged(int32 DestroyedEnemyCount)
+{
+	if (IsValid(ShooterHUDWidget))
+	{
+		ShooterHUDWidget->SetScore(DestroyedEnemyCount);
+	}
+}
+
+void AShooterPlayerController::OnWaveChanged(int32 CurrentWave)
+{
+	if (IsValid(ShooterHUDWidget))
+	{
+		ShooterHUDWidget->SetCurrentWave(CurrentWave);
+	}
+}
+
+void AShooterPlayerController::OnEnemiesRemainingChanged(int32 EnemiesRemaining)
+{
+	if (IsValid(ShooterHUDWidget))
+	{
+		ShooterHUDWidget->SetEnemiesRemaining(EnemiesRemaining);
+	}
+}
+
+void AShooterPlayerController::CreateShooterHUD()
+{
+	if (!IsLocalPlayerController() || IsValid(ShooterHUDWidget))
+	{
+		return;
+	}
+
+	TSubclassOf<UShooterHUDWidget> WidgetClass = ShooterHUDWidgetClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = UShooterHUDWidget::StaticClass();
+	}
+
+	ShooterHUDWidget = CreateWidget<UShooterHUDWidget>(this, WidgetClass);
+	if (ShooterHUDWidget)
+	{
+		ShooterHUDWidget->AddToPlayerScreen(0);
+	}
+	else
+	{
+		UE_LOG(LogCustom, Error, TEXT("Could not spawn shooter HUD widget."));
+	}
+}
+
+void AShooterPlayerController::BindShooterHUDToSpawner()
+{
+	if (!GetWorld() || !IsValid(ShooterHUDWidget))
+	{
+		return;
+	}
+
+	for (TActorIterator<AEnemySpawner> It(GetWorld()); It; ++It)
+	{
+		BoundEnemySpawner = *It;
+		break;
+	}
+
+	if (!BoundEnemySpawner)
+	{
+		UE_LOG(LogCustom, Warning, TEXT("No EnemySpawner found for shooter HUD wave data."));
+		return;
+	}
+
+	BoundEnemySpawner->OnWaveChanged.RemoveDynamic(this, &AShooterPlayerController::OnWaveChanged);
+	BoundEnemySpawner->OnWaveChanged.AddDynamic(this, &AShooterPlayerController::OnWaveChanged);
+	BoundEnemySpawner->OnEnemiesRemainingChanged.RemoveDynamic(this, &AShooterPlayerController::OnEnemiesRemainingChanged);
+	BoundEnemySpawner->OnEnemiesRemainingChanged.AddDynamic(this, &AShooterPlayerController::OnEnemiesRemainingChanged);
+
+	ShooterHUDWidget->SetCurrentWave(BoundEnemySpawner->GetCurrentWave());
+	ShooterHUDWidget->SetEnemiesRemaining(BoundEnemySpawner->GetEnemiesRemainingInWave());
+}
+
+void AShooterPlayerController::InitializeShooterHUDFromPawn(AShooterCharacter* ShooterCharacter)
+{
+	if (!IsValid(ShooterHUDWidget) || !ShooterCharacter)
+	{
+		return;
+	}
+
+	ShooterHUDWidget->SetPlayerHealth(ShooterCharacter->GetCurrentHealth(), ShooterCharacter->GetMaxHealth());
+	ShooterHUDWidget->SetScore(ShooterCharacter->GetDestroyedEnemyCount());
 }
 
 bool AShooterPlayerController::ShouldUseTouchControls() const
