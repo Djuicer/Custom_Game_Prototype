@@ -15,6 +15,14 @@ class CUSTOM_API AEnemySpawner : public AActor
 public:
 	AEnemySpawner();
 
+	/** Current wave number tracked by the spawner. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetCurrentWave() const { return CurrentWave; }
+
+	/** Number of enemies left to defeat before the current wave completes. */
+	UFUNCTION(BlueprintPure, Category = "Spawner|Waves")
+	int32 GetRemainingEnemiesInWave() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -73,6 +81,7 @@ private:
 
 	void StartWave();
 	void CheckWaveComplete();
+	void NotifyShooterUI() const;
 	UFUNCTION()
 	void HandleSpawnedEnemyDestroyed(AActor* DestroyedActor);
 
