@@ -128,6 +128,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 1000, Units = "cm"))
 	float MuzzleOffset = 10.0f;
 
+	/** Minimum safe distance ahead of the muzzle for grenade projectile spawns. */
+	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 1000, Units = "cm"))
+	float MinimumProjectileSpawnOffset = 100.0f;
+
 	/** If true, this weapon will automatically fire at the refire rate */
 	UPROPERTY(EditAnywhere, Category="Refire")
 	bool bFullAuto = false;

@@ -102,6 +102,12 @@ protected:
 	/** Gameplay cleanup */
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
+	/** Returns true when the projectile should ignore this actor as its shooter/owner. */
+	bool ShouldIgnoreHitActor(const AActor* OtherActor) const;
+
+	/** Makes projectile and shooter-side primitives ignore each other while moving. */
+	void IgnoreShooterActor(AActor* ActorToIgnore);
+
 	/** Handles collision */
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 

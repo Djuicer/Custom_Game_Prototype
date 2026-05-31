@@ -5,6 +5,7 @@
 
 #include "Enemy.h"
 #include "Components/SphereComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Character.h"
@@ -48,8 +49,42 @@ void AShooterProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// ignore the pawn that shot this projectile
-	CollisionComponent->IgnoreActorWhenMoving(GetInstigator(), true);
+	// ignore the pawn/actor that shot this projectile from both sides of movement collision
+	IgnoreShooterActor(GetOwner());
+	IgnoreShooterActor(GetInstigator());
+}
+
+
+bool AShooterProjectile::ShouldIgnoreHitActor(const AActor* OtherActor) const
+{
+	if (!OtherActor || OtherActor == this || OtherActor == GetOwner() || OtherActor == GetInstigator())
+	{
+		return true;
+	}
+
+	const APawn* InstigatorPawn = GetInstigator();
+	const AActor* InstigatorOwner = InstigatorPawn ? InstigatorPawn->GetOwner() : nullptr;
+	return OtherActor == InstigatorOwner;
+}
+
+void AShooterProjectile::IgnoreShooterActor(AActor* ActorToIgnore)
+{
+	if (!ActorToIgnore || ActorToIgnore == this)
+	{
+		return;
+	}
+
+	CollisionComponent->IgnoreActorWhenMoving(ActorToIgnore, true);
+
+	TArray<UPrimitiveComponent*> ShooterComponents;
+	ActorToIgnore->GetComponents<UPrimitiveComponent>(ShooterComponents);
+	for (UPrimitiveComponent* ShooterComponent : ShooterComponents)
+	{
+		if (ShooterComponent)
+		{
+			ShooterComponent->IgnoreActorWhenMoving(this, true);
+		}
+	}
 }
 
 void AShooterProjectile::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -77,21 +112,17 @@ void AShooterProjectile::NotifyHit(
 		return;
 	}
 
-	// If the projectile hits the player character/model, do not explode.
-	if (ACharacter* HitCharacter = Cast<ACharacter>(Other))
+	// Never explode on the projectile itself, owner, instigator, or shooter-side components.
+	if (ShouldIgnoreHitActor(Other))
 	{
-		if (HitCharacter->IsPlayerControlled())
+		IgnoreShooterActor(Other);
+
+		if (OtherComp)
 		{
-			// Make the projectile ignore the player from now on
-			CollisionComponent->IgnoreActorWhenMoving(HitCharacter, true);
-
-			if (OtherComp)
-			{
-				OtherComp->IgnoreActorWhenMoving(this, true);
-			}
-
-			return;
+			OtherComp->IgnoreActorWhenMoving(this, true);
 		}
+
+		return;
 	}
 
 	bHit = true;
@@ -152,6 +183,7 @@ void AShooterProjectile::ExplosionCheck(const FVector& ExplosionCenter)
 
 	if (!bDamageOwner)
 	{
+		QueryParams.AddIgnoredActor(GetOwner());
 		QueryParams.AddIgnoredActor(GetInstigator());
 	}
 
@@ -170,7 +202,7 @@ void AShooterProjectile::ExplosionCheck(const FVector& ExplosionCenter)
 	{
 		AActor* OverlappedActor = CurrentOverlap.GetActor();
 
-		if (!OverlappedActor)
+		if (!OverlappedActor || ShouldIgnoreHitActor(OverlappedActor))
 		{
 			continue;
 		}
@@ -232,8 +264,12 @@ void AShooterProjectile::ProcessHit(
 	float LaunchStrength
 )
 {
-	ACharacter* HitCharacter = Cast<ACharacter>(HitActor);
+	if (ShouldIgnoreHitActor(HitActor))
+	{
+		return;
+	}
 
+	ACharacter* HitCharacter = Cast<ACharacter>(HitActor);
 
 	if (!HitCharacter)
 	{
