@@ -39,4 +39,13 @@ public:
 
 	/** Increases the score for the given team */
 	void IncrementTeamScore(uint8 TeamByte);
+
+	/** Pushes the player's destroyed enemy count into the shooter HUD. */
+	void SetDestroyedEnemyCount(int32 DestroyedEnemyCount);
+
+protected:
+
+	/** Receives current wave stats from the active enemy spawner. */
+	UFUNCTION()
+	void OnWaveStatsUpdated(int32 CurrentWave, int32 EnemiesRemaining);
 };

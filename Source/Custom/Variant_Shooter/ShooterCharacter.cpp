@@ -349,6 +349,11 @@ void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
 	++DestroyedEnemyCount;
 	++UltimateEnemyCharge;
 
+	if (AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->SetDestroyedEnemyCount(DestroyedEnemyCount);
+	}
+
 	UE_LOG(
 		LogTemp,
 		Warning,

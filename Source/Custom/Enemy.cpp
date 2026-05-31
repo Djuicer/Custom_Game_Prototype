@@ -31,7 +31,13 @@ AEnemy::AEnemy()
 
 void AEnemy::Ragdoll()
 {
+	if (bIsRagdolling)
+	{
+		return;
+	}
+
 	ReportDestroyedIfNeeded();
+	OnEnemyDefeated.Broadcast(this);
 
 	// Cast<AEnemyAIController>(GetController())->BrainComponent->PauseLogic("Ragdolling");
 	SetShieldRaised(false);
