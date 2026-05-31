@@ -94,13 +94,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive")
 	TSubclassOf<AStickyCylinderExplosive> StickyExplosiveClass;
 
-	/** Currently active sticky explosive. Throwing another replaces this one. */
+	/** Last active sticky explosive, kept for Blueprint compatibility. Throwing another replaces active cylinders. */
 	UPROPERTY()
 	TObjectPtr<AStickyCylinderExplosive> ActiveStickyExplosive;
+
+	/** Active sticky explosives from the current throw. */
+	UPROPERTY()
+	TArray<TObjectPtr<AStickyCylinderExplosive>> ActiveStickyExplosives;
 
 	/** Distance in front of the first-person camera used to spawn the sticky explosive. */
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
 	float StickyExplosiveSpawnDistance = 100.0f;
+
+	/** Yaw angle between each sticky cylinder in a multi-throw fan. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "deg"))
+	float CylinderSpreadAngle = 10.0f;
+
+	/** Sideways spacing between each sticky cylinder spawn point in a multi-throw. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
+	float CylinderSpawnSideOffset = 18.0f;
 
 	/** Seconds before another sticky cylinder explosive can be thrown. Cooldown starts when a throw succeeds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "s"))
