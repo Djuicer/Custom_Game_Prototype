@@ -103,6 +103,40 @@ void UAbilityCooldownWidget::UpdateUltimateCharge(float ChargePercent, bool bIsR
 	OnUltimateChargeUpdated(ClampedPercent, bIsReady);
 }
 
+void UAbilityCooldownWidget::UpdateScore(int32 NewScore)
+{
+	if (ScoreText)
+	{
+		ScoreText->SetText(FText::Format(NSLOCTEXT("AbilityCooldownWidget", "ScoreFormat", "Score: {0}"), FText::AsNumber(NewScore)));
+		ScoreText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UAbilityCooldownWidget::UpdateRemainingEnemies(int32 NewRemainingEnemies)
+{
+	if (RemainingEnemiesText)
+	{
+		RemainingEnemiesText->SetText(FText::Format(NSLOCTEXT("AbilityCooldownWidget", "RemainingEnemiesFormat", "Enemies Left: {0}"), FText::AsNumber(NewRemainingEnemies)));
+		RemainingEnemiesText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UAbilityCooldownWidget::UpdateWaveNumber(int32 NewWaveNumber)
+{
+	if (WaveText)
+	{
+		WaveText->SetText(FText::Format(NSLOCTEXT("AbilityCooldownWidget", "WaveFormat", "Wave: {0}"), FText::AsNumber(NewWaveNumber)));
+		WaveText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UAbilityCooldownWidget::UpdateWaveHUD(int32 NewScore, int32 NewRemainingEnemies, int32 NewWaveNumber)
+{
+	UpdateScore(NewScore);
+	UpdateRemainingEnemies(NewRemainingEnemies);
+	UpdateWaveNumber(NewWaveNumber);
+}
+
 void UAbilityCooldownWidget::HandleAbilityCooldownStarted(float Duration)
 {
 	const float Remaining = BoundAbility ? BoundAbility->GetCooldownRemaining() : Duration;

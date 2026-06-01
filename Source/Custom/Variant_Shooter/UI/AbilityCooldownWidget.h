@@ -17,8 +17,14 @@ class UTextBlock;
  * Create a Widget Blueprint derived from this class and design the layout in UMG.
  * Optional BindWidget names for the Shift ability are "AbilityIcon" and "CooldownText".
  * Optional BindWidget names for Ultimate are "UltimateChargeBar", "UltimateChargeText",
- * "UltimateReadyText", and "UltimateIcon". Gameplay cooldown/charge values are owned by
- * gameplay classes; this widget only represents ability state.
+ * "UltimateReadyText", and "UltimateIcon".
+ *
+ * Optional BindWidget names for the simple wave HUD are "ScoreText",
+ * "RemainingEnemiesText", and "WaveText". Create TextBlocks with those exact names
+ * in the Widget Blueprint if you want this native class to update them automatically.
+ *
+ * Gameplay cooldown/charge/wave values are owned by gameplay classes; this widget only
+ * represents the current display state.
  */
 UCLASS()
 class CUSTOM_API UAbilityCooldownWidget : public UUserWidget
@@ -56,6 +62,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Ultimate")
 	void UpdateUltimateCharge(float ChargePercent, bool bIsReady);
 
+	/** Updates the score TextBlock. Expected Widget Blueprint TextBlock name: "ScoreText". */
+	UFUNCTION(BlueprintCallable, Category="Wave HUD")
+	void UpdateScore(int32 NewScore);
+
+	/** Updates the remaining enemies TextBlock. Expected Widget Blueprint TextBlock name: "RemainingEnemiesText". */
+	UFUNCTION(BlueprintCallable, Category="Wave HUD")
+	void UpdateRemainingEnemies(int32 NewRemainingEnemies);
+
+	/** Updates the current wave TextBlock. Expected Widget Blueprint TextBlock name: "WaveText". */
+	UFUNCTION(BlueprintCallable, Category="Wave HUD")
+	void UpdateWaveNumber(int32 NewWaveNumber);
+
+	/** Convenience helper for refreshing all simple wave HUD values together. */
+	UFUNCTION(BlueprintCallable, Category="Wave HUD")
+	void UpdateWaveHUD(int32 NewScore, int32 NewRemainingEnemies, int32 NewWaveNumber);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -83,6 +105,18 @@ protected:
 	/** Optional UMG binding. Name an Image "UltimateIcon" to tint/highlight the Ultimate icon when ready. */
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Ultimate|Bindings")
 	TObjectPtr<UImage> UltimateIcon;
+
+	/** Optional UMG binding. In the Widget Blueprint, create a TextBlock named "ScoreText". */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Wave HUD|Bindings")
+	TObjectPtr<UTextBlock> ScoreText;
+
+	/** Optional UMG binding. In the Widget Blueprint, create a TextBlock named "RemainingEnemiesText". */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Wave HUD|Bindings")
+	TObjectPtr<UTextBlock> RemainingEnemiesText;
+
+	/** Optional UMG binding. In the Widget Blueprint, create a TextBlock named "WaveText". */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Wave HUD|Bindings")
+	TObjectPtr<UTextBlock> WaveText;
 
 	/** Icon tint when the ability is ready. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ability Cooldown|Style")
