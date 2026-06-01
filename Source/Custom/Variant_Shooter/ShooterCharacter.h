@@ -119,20 +119,24 @@ protected:
 	/** Enemy actors already credited, so duplicate Blueprint/native death notifications cannot double-charge Ultimate. */
 	TSet<TWeakObjectPtr<AActor>> CountedDestroyedEnemies;
 
-	/** Enemy-destroy charge currently available for Ultimate activation. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ultimate")
-	int32 UltimateEnemyCharge = 0;
+	/** Current Ultimate charge. The UI displays UltimateCharge / UltimateMaxCharge as 0% to 100%. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate", meta = (ClampMin = "0.0"))
+	float UltimateCharge = 0.0f;
 
-	/** Number of destroyed enemies required to activate Ultimate once. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate", meta = (ClampMin = 1))
-	int32 EnemiesRequiredForUltimate = 10;
+	/** Charge required before Q can activate the Ultimate. Keep this at 10 for one charge per enemy, or use 100 for percentage-style tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate", meta = (ClampMin = "1.0"))
+	float UltimateMaxCharge = 10.0f;
+
+	/** Charge granted by RegisterDestroyedEnemy for each unique destroyed enemy. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate", meta = (ClampMin = "0.0"))
+	float UltimateChargePerEnemyDestroyed = 1.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Character Switching")
 	TSubclassOf<AUltimate> UltimateCharacterClass;
 
 	void DoSwitchToUltimate();
 
-	bool ConsumeUltimateCharge();
+	void RefreshUltimateWidget();
 
 public:
 
@@ -220,13 +224,41 @@ public:
 	UFUNCTION(BlueprintPure, Category="Ultimate")
 	int32 GetDestroyedEnemyCount() const { return DestroyedEnemyCount; }
 
-	/** Current enemy-destroy charge available for Ultimate. */
+	/** Current Ultimate charge. */
 	UFUNCTION(BlueprintPure, Category="Ultimate")
-	int32 GetUltimateEnemyCharge() const { return UltimateEnemyCharge; }
+	float GetUltimateCharge() const { return UltimateCharge; }
 
-	/** Returns true when enough enemy-destroy charge is available to activate Ultimate. */
+	/** Maximum Ultimate charge needed before Q can activate the Ultimate. */
 	UFUNCTION(BlueprintPure, Category="Ultimate")
-	bool IsUltimateCharged() const { return UltimateEnemyCharge >= EnemiesRequiredForUltimate; }
+	float GetUltimateMaxCharge() const { return UltimateMaxCharge; }
+
+	/** Returns true when Ultimate charge is full. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	bool IsUltimateReady() const;
+
+	/** Returns Ultimate charge from 0 to 1 for UI progress bars. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	float GetUltimateChargePercent() const;
+
+	/** Adds raw Ultimate charge and refreshes the UI. Safe to call from Blueprint. */
+	UFUNCTION(BlueprintCallable, Category="Ultimate")
+	void AddUltimateCharge(float Amount);
+
+	/** Simple Blueprint hook for enemy Blueprint/death logic. Call this when an enemy is destroyed. */
+	UFUNCTION(BlueprintCallable, Category="Ultimate")
+	void AddUltimateChargeFromEnemyDestroyed(float ChargeAmount);
+
+	/** Attempts to activate Ultimate from the current charge. Returns true only when activation succeeds and charge is reset. */
+	UFUNCTION(BlueprintCallable, Category="Ultimate")
+	bool TryActivateUltimate();
+
+	/** Backwards-compatible helper for older Blueprint graphs that checked enemy-count Ultimate charge. */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	int32 GetUltimateEnemyCharge() const { return FMath::RoundToInt(UltimateCharge); }
+
+	/** Backwards-compatible helper for older Blueprint graphs. Prefer IsUltimateReady(). */
+	UFUNCTION(BlueprintPure, Category="Ultimate")
+	bool IsUltimateCharged() const { return IsUltimateReady(); }
 
 public:
 

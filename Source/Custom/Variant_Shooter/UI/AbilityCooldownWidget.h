@@ -8,15 +8,17 @@
 
 class AStickyCylinderExplosive;
 class UImage;
+class UProgressBar;
 class UTextBlock;
 
 /**
- * Blueprint-friendly base widget for a square ability icon bound to StickyCylinderExplosive cooldown state.
+ * Blueprint-friendly base widget for the Shift ability cooldown plus a simple Ultimate charge display.
  *
- * Create a Widget Blueprint derived from this class, design the layout in UMG,
- * then optionally name an Image widget "AbilityIcon" and a TextBlock widget
- * "CooldownText" to bind them automatically. Gameplay cooldowns are owned by
- * the ability; this widget only represents ability state.
+ * Create a Widget Blueprint derived from this class and design the layout in UMG.
+ * Optional BindWidget names for the Shift ability are "AbilityIcon" and "CooldownText".
+ * Optional BindWidget names for Ultimate are "UltimateChargeBar", "UltimateChargeText",
+ * "UltimateReadyText", and "UltimateIcon". Gameplay cooldown/charge values are owned by
+ * gameplay classes; this widget only represents ability state.
  */
 UCLASS()
 class CUSTOM_API UAbilityCooldownWidget : public UUserWidget
@@ -50,6 +52,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Ability Cooldown")
 	float GetCooldownDuration() const;
 
+	/** Updates the Ultimate UI from the owning Shooter Character. ChargePercent should be 0..1. */
+	UFUNCTION(BlueprintCallable, Category="Ultimate")
+	void UpdateUltimateCharge(float ChargePercent, bool bIsReady);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -62,6 +68,22 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Ability Cooldown|Bindings")
 	TObjectPtr<UTextBlock> CooldownText;
 
+	/** Optional UMG binding. Name a ProgressBar "UltimateChargeBar" to show Ultimate charge from 0 to 1. */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Ultimate|Bindings")
+	TObjectPtr<UProgressBar> UltimateChargeBar;
+
+	/** Optional UMG binding. Name a TextBlock "UltimateChargeText" to show Ultimate charge like "75%". */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Ultimate|Bindings")
+	TObjectPtr<UTextBlock> UltimateChargeText;
+
+	/** Optional UMG binding. Name a TextBlock "UltimateReadyText" to show "READY" when Ultimate is fully charged. */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Ultimate|Bindings")
+	TObjectPtr<UTextBlock> UltimateReadyText;
+
+	/** Optional UMG binding. Name an Image "UltimateIcon" to tint/highlight the Ultimate icon when ready. */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Ultimate|Bindings")
+	TObjectPtr<UImage> UltimateIcon;
+
 	/** Icon tint when the ability is ready. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ability Cooldown|Style")
 	FLinearColor ReadyIconTint = FLinearColor::White;
@@ -69,6 +91,14 @@ protected:
 	/** Icon tint while the ability is cooling down. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ability Cooldown|Style")
 	FLinearColor CooldownIconTint = FLinearColor(0.25f, 0.25f, 0.25f, 1.0f);
+
+	/** Ultimate icon tint while charging. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate|Style")
+	FLinearColor UltimateChargingIconTint = FLinearColor(0.35f, 0.35f, 0.35f, 1.0f);
+
+	/** Ultimate icon tint when fully charged. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ultimate|Style")
+	FLinearColor UltimateReadyIconTint = FLinearColor::White;
 
 	/** Called when the bound ability starts cooldown so Blueprint can customize animations or styling. */
 	UFUNCTION(BlueprintImplementableEvent, Category="Ability Cooldown")
@@ -81,6 +111,10 @@ protected:
 	/** Called when the bound ability cooldown reaches zero. */
 	UFUNCTION(BlueprintImplementableEvent, Category="Ability Cooldown")
 	void OnCooldownFinished();
+
+	/** Called whenever the owning Shooter Character changes Ultimate charge. */
+	UFUNCTION(BlueprintImplementableEvent, Category="Ultimate")
+	void OnUltimateChargeUpdated(float ChargePercent, bool bIsReady);
 
 private:
 	UFUNCTION()

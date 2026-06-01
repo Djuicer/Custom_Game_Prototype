@@ -95,6 +95,7 @@ void AShooterCharacter::BeginPlay()
 			{
 				AbilityWidget->AddToViewport();
 				AbilityWidget->BindToAbility(StickyCylinderExplosiveAbility);
+				RefreshUltimateWidget();
 			}
 		}
 	}
@@ -132,7 +133,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 	check(PlayerInputComponent);
 
-	// Press Q to switch from ShooterCharacter to Ultimate
+	// Press Q to activate Ultimate when UltimateCharge is full.
 	PlayerInputComponent->BindKey(EKeys::Q, IE_Pressed, this, &AShooterCharacter::DoSwitchToUltimate);
 
 	// Shift ability fallback binding so the ability is immediately testable without Enhanced Input asset changes.
@@ -326,35 +327,146 @@ void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
 	CountedDestroyedEnemies.Add(DestroyedEnemyKey);
 
 	++DestroyedEnemyCount;
-	++UltimateEnemyCharge;
+	AddUltimateCharge(UltimateChargePerEnemyDestroyed);
 
 	UE_LOG(
 		LogTemp,
 		Warning,
-		TEXT("Enemy destroyed: %s | Total destroyed: %d | Ultimate charge: %d/%d"),
+		TEXT("Enemy destroyed: %s | Total destroyed: %d | Ultimate charge: %.1f/%.1f"),
 		*GetNameSafe(DestroyedEnemy),
 		DestroyedEnemyCount,
-		UltimateEnemyCharge,
-		EnemiesRequiredForUltimate
+		UltimateCharge,
+		UltimateMaxCharge
 	);
 }
 
-bool AShooterCharacter::ConsumeUltimateCharge()
+bool AShooterCharacter::IsUltimateReady() const
 {
-	if (!IsUltimateCharged())
+	return UltimateMaxCharge > 0.0f && UltimateCharge >= UltimateMaxCharge;
+}
+
+float AShooterCharacter::GetUltimateChargePercent() const
+{
+	return UltimateMaxCharge > 0.0f ? FMath::Clamp(UltimateCharge / UltimateMaxCharge, 0.0f, 1.0f) : 0.0f;
+}
+
+void AShooterCharacter::AddUltimateCharge(float Amount)
+{
+	if (Amount <= 0.0f || UltimateMaxCharge <= 0.0f)
+	{
+		return;
+	}
+
+	UltimateCharge = FMath::Clamp(UltimateCharge + Amount, 0.0f, UltimateMaxCharge);
+	RefreshUltimateWidget();
+}
+
+void AShooterCharacter::AddUltimateChargeFromEnemyDestroyed(float ChargeAmount)
+{
+	AddUltimateCharge(ChargeAmount);
+}
+
+bool AShooterCharacter::TryActivateUltimate()
+{
+	if (IsDead())
 	{
 		return false;
 	}
 
-	UltimateEnemyCharge -= EnemiesRequiredForUltimate;
+	if (!IsUltimateReady())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Ultimate is not ready yet. Charge: %.1f/%.1f"),
+			UltimateCharge,
+			UltimateMaxCharge
+		);
+		return false;
+	}
+
+	if (!UltimateCharacterClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UltimateCharacterClass is not set on ShooterCharacter."));
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TryActivateUltimate failed: Shooter has no PlayerController."));
+		return false;
+	}
+
+	const float SpawnDistance = 300.0f;
+
+	const FVector SpawnLocation =
+		GetActorLocation() +
+		GetActorForwardVector() * SpawnDistance;
+
+	const FRotator SpawnRotation = GetActorRotation();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = PlayerController;
+	SpawnParams.Instigator = this;
+	SpawnParams.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AUltimate* NewUltimate = World->SpawnActor<AUltimate>(
+		UltimateCharacterClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParams
+	);
+
+	if (!NewUltimate)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to spawn Ultimate character."));
+		return false;
+	}
+
+	UltimateCharge = 0.0f;
+	RefreshUltimateWidget();
+
+	// Store the exact shooter that pressed Q.
+	NewUltimate->SetReturnShooterCharacter(this);
+
+	// Hide old shooter but keep it alive at its current location.
+	HideForUltimateMode();
+
+	// Keep the same view direction when switching into Ultimate.
+	PlayerController->SetControlRotation(GetControlRotation());
+
+	// Possess Ultimate.
+	PlayerController->Possess(NewUltimate);
+
+	// Make sure input is active for Ultimate.
+	PlayerController->SetIgnoreLookInput(false);
+	PlayerController->SetIgnoreMoveInput(false);
+
 	UE_LOG(
 		LogTemp,
 		Warning,
-		TEXT("Ultimate charge consumed. Remaining charge: %d/%d"),
-		UltimateEnemyCharge,
-		EnemiesRequiredForUltimate
+		TEXT("Switched to Ultimate. Old shooter kept alive: %s | New pawn: %s"),
+		*GetName(),
+		*GetNameSafe(PlayerController->GetPawn())
 	);
+
 	return true;
+}
+
+void AShooterCharacter::RefreshUltimateWidget()
+{
+	if (AbilityWidget)
+	{
+		AbilityWidget->UpdateUltimateCharge(GetUltimateChargePercent(), IsUltimateReady());
+	}
 }
 
 void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
@@ -518,98 +630,7 @@ bool AShooterCharacter::IsDead() const
 
 void AShooterCharacter::DoSwitchToUltimate()
 {
-	if (IsDead())
-	{
-		return;
-	}
-
-	if (!IsUltimateCharged())
-	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("Ultimate is not charged yet. Charge: %d/%d"),
-			UltimateEnemyCharge,
-			EnemiesRequiredForUltimate
-		);
-		return;
-	}
-
-	if (!UltimateCharacterClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("UltimateCharacterClass is not set on ShooterCharacter."));
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	APlayerController* PlayerController = Cast<APlayerController>(GetController());
-	if (!PlayerController)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("DoSwitchToUltimate failed: Shooter has no PlayerController."));
-		return;
-	}
-
-	const float SpawnDistance = 300.0f;
-
-	const FVector SpawnLocation =
-		GetActorLocation() +
-		GetActorForwardVector() * SpawnDistance;
-
-	const FRotator SpawnRotation = GetActorRotation();
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = PlayerController;
-	SpawnParams.Instigator = this;
-	SpawnParams.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-	AUltimate* NewUltimate = World->SpawnActor<AUltimate>(
-		UltimateCharacterClass,
-		SpawnLocation,
-		SpawnRotation,
-		SpawnParams
-	);
-
-	if (!NewUltimate)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Failed to spawn Ultimate character."));
-		return;
-	}
-
-	if (!ConsumeUltimateCharge())
-	{
-		NewUltimate->Destroy();
-		return;
-	}
-
-	// Store the exact shooter that pressed Q.
-	NewUltimate->SetReturnShooterCharacter(this);
-
-	// Hide old shooter but keep it alive at its current location.
-	HideForUltimateMode();
-
-	// Keep the same view direction when switching into Ultimate.
-	PlayerController->SetControlRotation(GetControlRotation());
-
-	// Possess Ultimate.
-	PlayerController->Possess(NewUltimate);
-
-	// Make sure input is active for Ultimate.
-	PlayerController->SetIgnoreLookInput(false);
-	PlayerController->SetIgnoreMoveInput(false);
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("Switched to Ultimate. Old shooter kept alive: %s | New pawn: %s"),
-		*GetName(),
-		*GetNameSafe(PlayerController->GetPawn())
-	);
+	TryActivateUltimate();
 }
 
 void AShooterCharacter::HideForUltimateMode()
