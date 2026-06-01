@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "Variant_Shooter/ShooterCharacter.h"
 
 AEnemySpawner::AEnemySpawner()
 {
@@ -39,9 +41,14 @@ void AEnemySpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AEnemySpawner::StartWave()
 {
+	CurrentWave = FMath::Max(1, CurrentWave);
 	EnemiesSpawnedThisWave = 0;
 	EnemiesRequiredThisWave = StartingEnemiesPerWave + ((CurrentWave - 1) * EnemiesAddedPerWave);
 	EnemiesRequiredThisWave = FMath::Max(1, EnemiesRequiredThisWave);
+
+	// The Shooter Character owns the HUD gameplay values. This spawner only tells it
+	// that a wave began and how many enemies must be defeated in that wave.
+	UpdateShooterWaveHUD();
 }
 
 void AEnemySpawner::CheckWaveComplete()
@@ -59,15 +66,36 @@ void AEnemySpawner::CheckWaveComplete()
 
 	GetWorldTimerManager().SetTimer(NextWaveTimerHandle, [this]()
 	{
-		CurrentWave++;
+		++CurrentWave;
 		StartWave();
 	}, TimeBetweenWaves, false);
 }
 
 void AEnemySpawner::HandleSpawnedEnemyDestroyed(AActor* DestroyedActor)
 {
+	// Some enemy classes report death to the Shooter Character before the actor is
+	// actually destroyed. Calling this here as well keeps the spawner flexible for
+	// simpler enemies that only fire OnDestroyed; ShooterCharacter ignores duplicates.
+	if (AShooterCharacter* ShooterCharacter = GetShooterHUDOwner())
+	{
+		ShooterCharacter->RegisterDestroyedEnemy(DestroyedActor);
+	}
+
 	CleanupDeadEnemies();
 	CheckWaveComplete();
+}
+
+AShooterCharacter* AEnemySpawner::GetShooterHUDOwner() const
+{
+	return Cast<AShooterCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
+}
+
+void AEnemySpawner::UpdateShooterWaveHUD() const
+{
+	if (AShooterCharacter* ShooterCharacter = GetShooterHUDOwner())
+	{
+		ShooterCharacter->StartWaveHUD(CurrentWave, EnemiesRequiredThisWave);
+	}
 }
 
 void AEnemySpawner::CleanupDeadEnemies()

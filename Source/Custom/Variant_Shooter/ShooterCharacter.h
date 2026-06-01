@@ -112,7 +112,19 @@ protected:
 	TObjectPtr<AStickyCylinderExplosive> StickyCylinderExplosiveAbility;
 
 
-	/** Lifetime number of enemy actors that have reported death/destruction to this player. */
+	/** Score shown on the simple wave HUD. This is the total number of unique enemies destroyed. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Wave HUD")
+	int32 Score = 0;
+
+	/** Number of enemies left to defeat in the current wave. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Wave HUD")
+	int32 RemainingEnemies = 0;
+
+	/** Current wave number shown on the HUD. Wave numbering starts at 1. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Wave HUD", meta = (ClampMin = "1"))
+	int32 CurrentWave = 1;
+
+	/** Lifetime number of enemy actors that have reported death/destruction to this player. Kept for existing Ultimate logic. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ultimate")
 	int32 DestroyedEnemyCount = 0;
 
@@ -137,6 +149,8 @@ protected:
 	void DoSwitchToUltimate();
 
 	void RefreshUltimateWidget();
+
+	void RefreshWaveHUDWidget();
 
 public:
 
@@ -219,6 +233,26 @@ public:
 	/** Records exactly one enemy death/destruction notification. Exposed for enemy Blueprint death hooks if needed. */
 	UFUNCTION(BlueprintCallable, Category="Ultimate")
 	void RegisterDestroyedEnemy(AActor* DestroyedEnemy);
+
+	/** Called by simple wave spawners when a new wave starts. Keeps the widget display-only. */
+	UFUNCTION(BlueprintCallable, Category="Wave HUD")
+	void StartWaveHUD(int32 NewWaveNumber, int32 NewRemainingEnemies);
+
+	/** Flexible helper if your Blueprint or wave system already computes all three HUD values. */
+	UFUNCTION(BlueprintCallable, Category="Wave HUD")
+	void UpdateWaveHUDValues(int32 NewScore, int32 NewRemainingEnemies, int32 NewWaveNumber);
+
+	/** Score shown on the simple wave HUD: total unique destroyed enemies. */
+	UFUNCTION(BlueprintPure, Category="Wave HUD")
+	int32 GetScore() const { return Score; }
+
+	/** Enemies left to defeat in the current wave. */
+	UFUNCTION(BlueprintPure, Category="Wave HUD")
+	int32 GetRemainingEnemies() const { return RemainingEnemies; }
+
+	/** Current wave number. Starts at 1. */
+	UFUNCTION(BlueprintPure, Category="Wave HUD")
+	int32 GetCurrentWave() const { return CurrentWave; }
 
 	/** Lifetime number of enemies destroyed. */
 	UFUNCTION(BlueprintPure, Category="Ultimate")

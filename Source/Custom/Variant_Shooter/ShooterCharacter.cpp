@@ -96,6 +96,7 @@ void AShooterCharacter::BeginPlay()
 				AbilityWidget->AddToViewport();
 				AbilityWidget->BindToAbility(StickyCylinderExplosiveAbility);
 				RefreshUltimateWidget();
+				RefreshWaveHUDWidget();
 			}
 		}
 	}
@@ -313,7 +314,7 @@ float AShooterCharacter::GetExplosiveCylinderCooldownRemaining() const
 
 void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
 {
-	if (!DestroyedEnemy || (!DestroyedEnemy->IsA<AEnemy>() && !DestroyedEnemy->IsA<AShooterNPC>()))
+	if (!DestroyedEnemy)
 	{
 		return;
 	}
@@ -326,18 +327,40 @@ void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)
 
 	CountedDestroyedEnemies.Add(DestroyedEnemyKey);
 
-	++DestroyedEnemyCount;
+	++Score;
+	DestroyedEnemyCount = Score;
+	RemainingEnemies = FMath::Max(0, RemainingEnemies - 1);
+
 	AddUltimateCharge(UltimateChargePerEnemyDestroyed);
+	RefreshWaveHUDWidget();
 
 	UE_LOG(
 		LogTemp,
 		Warning,
-		TEXT("Enemy destroyed: %s | Total destroyed: %d | Ultimate charge: %.1f/%.1f"),
+		TEXT("Enemy destroyed: %s | Score: %d | Enemies left: %d | Wave: %d | Ultimate charge: %.1f/%.1f"),
 		*GetNameSafe(DestroyedEnemy),
-		DestroyedEnemyCount,
+		Score,
+		RemainingEnemies,
+		CurrentWave,
 		UltimateCharge,
 		UltimateMaxCharge
 	);
+}
+
+void AShooterCharacter::StartWaveHUD(int32 NewWaveNumber, int32 NewRemainingEnemies)
+{
+	CurrentWave = FMath::Max(1, NewWaveNumber);
+	RemainingEnemies = FMath::Max(0, NewRemainingEnemies);
+	RefreshWaveHUDWidget();
+}
+
+void AShooterCharacter::UpdateWaveHUDValues(int32 NewScore, int32 NewRemainingEnemies, int32 NewWaveNumber)
+{
+	Score = FMath::Max(0, NewScore);
+	DestroyedEnemyCount = Score;
+	RemainingEnemies = FMath::Max(0, NewRemainingEnemies);
+	CurrentWave = FMath::Max(1, NewWaveNumber);
+	RefreshWaveHUDWidget();
 }
 
 bool AShooterCharacter::IsUltimateReady() const
@@ -466,6 +489,14 @@ void AShooterCharacter::RefreshUltimateWidget()
 	if (AbilityWidget)
 	{
 		AbilityWidget->UpdateUltimateCharge(GetUltimateChargePercent(), IsUltimateReady());
+	}
+}
+
+void AShooterCharacter::RefreshWaveHUDWidget()
+{
+	if (AbilityWidget)
+	{
+		AbilityWidget->UpdateWaveHUD(Score, RemainingEnemies, CurrentWave);
 	}
 }
 

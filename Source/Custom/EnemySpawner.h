@@ -6,6 +6,7 @@
 
 class ACharacter;
 class AActor;
+class AShooterCharacter;
 
 UCLASS(Blueprintable)
 class CUSTOM_API AEnemySpawner : public AActor
@@ -73,6 +74,8 @@ private:
 
 	void StartWave();
 	void CheckWaveComplete();
+	AShooterCharacter* GetShooterHUDOwner() const;
+	void UpdateShooterWaveHUD() const;
 	UFUNCTION()
 	void HandleSpawnedEnemyDestroyed(AActor* DestroyedActor);
 
