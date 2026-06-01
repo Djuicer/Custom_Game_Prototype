@@ -13,6 +13,7 @@ class UInputAction;
 class UInputComponent;
 class UPawnNoiseEmitterComponent;
 class AUltimate;
+class UAbilityCooldownWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32, MagazineSize, int32, Bullets);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent);
@@ -41,7 +42,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* SwitchWeaponAction;
 
-	/** Optional Enhanced Input action for throwing the sticky explosive. Shift is also bound directly in C++. */
+	/** Optional Enhanced Input action for the Shift ability. Shift is also bound directly in C++. */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* ThrowStickyExplosiveAction;
 
@@ -89,6 +90,18 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category="Weapons")
 	TSubclassOf<AShooterWeapon> DefaultWeaponClass;
+
+
+	/**
+	 * Widget Blueprint class for the Shift ability cooldown UI.
+	 * Assign your Widget Blueprint derived from UAbilityCooldownWidget on the Shooter Character Blueprint.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI")
+	TSubclassOf<UAbilityCooldownWidget> AbilityWidgetClass;
+
+	/** Runtime instance of the ability cooldown widget created in BeginPlay. */
+	UPROPERTY(BlueprintReadOnly, Category="UI")
+	TObjectPtr<UAbilityCooldownWidget> AbilityWidget;
 
 	/** Sticky explosive class to throw. Uses the native cylinder explosive if left unset. */
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive")
@@ -200,6 +213,10 @@ public:
 	/** Handles switch weapon input */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
+
+	/** Handles the Shift ability input and starts the UI cooldown when the ability is accepted. */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void HandleAbilityPressed();
 
 	/** Throws or replaces the active sticky cylinder explosive. */
 	UFUNCTION(BlueprintCallable, Category="Input")
