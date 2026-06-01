@@ -1,19 +1,16 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "AttackPlayerBTTaskNode.h"
 
 #include "EnemyAIController.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
 
 EBTNodeResult::Type UAttackPlayerBTTaskNode::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	UBehaviorTreeComponent* BTComp = &OwnerComp;
-	if(!BTComp)
+	AEnemyAIController* AIController = Cast<AEnemyAIController>(OwnerComp.GetOwner());
+	if (!AIController)
+	{
 		return EBTNodeResult::Failed;
-	AEnemyAIController* BTController =
-	 Cast<AEnemyAIController>(BTComp->GetOwner());
-	if(!BTController)
-		return EBTNodeResult::Failed;
-	BTController->AttackPlayer();
+	}
+
+	AIController->AttackPlayer();
 	return EBTNodeResult::Succeeded;
 }

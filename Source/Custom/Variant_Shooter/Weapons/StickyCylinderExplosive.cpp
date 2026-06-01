@@ -289,14 +289,11 @@ void AStickyCylinderExplosive::NotifyHit(
 		return;
 	}
 
-	// Ignore invalid hits, self hits, and the player who threw it.
 	if (!Other || Other == this || Other == GetInstigator())
 	{
 		return;
 	}
 
-	// Important fix:
-	// Do not allow the explosive to stick to its own collision component.
 	if (!OtherComp || OtherComp == CollisionComponent || OtherComp->GetOwner() == this)
 	{
 		return;
@@ -309,7 +306,6 @@ void AStickyCylinderExplosive::StickToSurface(const FHitResult& Hit)
 {
 	UPrimitiveComponent* HitComponent = Hit.GetComponent();
 
-	// Safety check: never attach to our own component.
 	if (!HitComponent || HitComponent == CollisionComponent || HitComponent->GetOwner() == this)
 	{
 		return;

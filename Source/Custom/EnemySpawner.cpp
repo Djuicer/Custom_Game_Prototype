@@ -19,7 +19,6 @@ void AEnemySpawner::BeginPlay()
 
 	if (SpawnInterval <= 0.0f)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EnemySpawner '%s' has invalid SpawnInterval. Spawning disabled."), *GetName());
 		return;
 	}
 
@@ -46,8 +45,6 @@ void AEnemySpawner::StartWave()
 	EnemiesRequiredThisWave = StartingEnemiesPerWave + ((CurrentWave - 1) * EnemiesAddedPerWave);
 	EnemiesRequiredThisWave = FMath::Max(1, EnemiesRequiredThisWave);
 
-	// The Shooter Character owns the HUD gameplay values. This spawner only tells it
-	// that a wave began and how many enemies must be defeated in that wave.
 	UpdateShooterWaveHUD();
 }
 
@@ -73,9 +70,6 @@ void AEnemySpawner::CheckWaveComplete()
 
 void AEnemySpawner::HandleSpawnedEnemyDestroyed(AActor* DestroyedActor)
 {
-	// Some enemy classes report death to the Shooter Character before the actor is
-	// actually destroyed. Calling this here as well keeps the spawner flexible for
-	// simpler enemies that only fire OnDestroyed; ShooterCharacter ignores duplicates.
 	if (AShooterCharacter* ShooterCharacter = GetShooterHUDOwner())
 	{
 		ShooterCharacter->RegisterDestroyedEnemy(DestroyedActor);
@@ -163,22 +157,22 @@ bool AEnemySpawner::TryGetSpawnLocation(FVector& OutSpawnLocation) const
 
 	switch (EdgeIndex)
 	{
-	case 0: // Top
+	case 0:
 		EdgeStart = TopLeft;
 		EdgeEnd = TopRight;
 		InwardDirection = FVector(0.0f, -1.0f, 0.0f);
 		break;
-	case 1: // Right
+	case 1:
 		EdgeStart = TopRight;
 		EdgeEnd = BottomRight;
 		InwardDirection = FVector(-1.0f, 0.0f, 0.0f);
 		break;
-	case 2: // Bottom
+	case 2:
 		EdgeStart = BottomRight;
 		EdgeEnd = BottomLeft;
 		InwardDirection = FVector(0.0f, 1.0f, 0.0f);
 		break;
-	default: // Left
+	default:
 		EdgeStart = BottomLeft;
 		EdgeEnd = TopLeft;
 		InwardDirection = FVector(1.0f, 0.0f, 0.0f);

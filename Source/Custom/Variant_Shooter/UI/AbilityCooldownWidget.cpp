@@ -167,11 +167,8 @@ void UAbilityCooldownWidget::ApplyReadyVisuals()
 	ClearCooldownText();
 }
 
-void UAbilityCooldownWidget::ApplyCooldownVisuals(float Remaining, float Duration, float Percent)
+void UAbilityCooldownWidget::ApplyCooldownVisuals(float Remaining, float, float)
 {
-	(void)Duration;
-	(void)Percent;
-
 	if (AbilityIcon)
 	{
 		AbilityIcon->SetColorAndOpacity(CooldownIconTint);

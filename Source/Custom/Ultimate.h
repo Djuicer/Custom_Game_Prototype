@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -50,7 +48,7 @@ protected:
 		const FVector& HitDirection,
 		float LaunchStrength
 	);
-	
+
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
@@ -115,6 +113,4 @@ private:
 	void RemoveUltimateMappingContext();
 
 	void DestroyUltimateAfterReturn();
-	
-	
 };

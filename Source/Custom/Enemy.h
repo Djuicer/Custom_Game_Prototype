@@ -1,13 +1,11 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Enemy.generated.h"
 
-class UStaticMeshComponent;
 class AShooterCharacter;
+class UStaticMeshComponent;
 
 UCLASS()
 class CUSTOM_API AEnemy : public ACharacter
@@ -15,20 +13,18 @@ class CUSTOM_API AEnemy : public ACharacter
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	AEnemy();
-	
+
 	UFUNCTION(BlueprintCallable)
 	void Ragdoll();
-	
+
 	UFUNCTION(BlueprintCallable)
 	void StopRagdoll();
-	
+
 	UFUNCTION(BlueprintCallable)
 	void DealDamage(float Damage);
 
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
-
 	virtual void Destroyed() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy|Shield")
@@ -47,15 +43,14 @@ public:
 	bool HasUsableShield() const { return !bShieldBroken && ShieldHealth > 0.0f; }
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health")
 	float MaxHealth = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health")
 	float CurrentHealth = 100.0f;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Ragdoll")
 	float RagdollTime = 3.0f;
 
@@ -77,7 +72,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Shield")
 	bool bShieldBroken = false;
 
-	/** True after this enemy has contributed to the player's destroyed-enemy counter. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Death")
 	bool bHasReportedDestroyed = false;
 
@@ -95,21 +89,12 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Enemy|Shield")
 	void OnShieldBroken();
-	
+
 	FTimerHandle RagdollTimerHandle;
-	FTimerHandle ShootingTimerHandle;
 
 private:
 	void AttachShieldMesh();
 	void ApplyShieldVisibility();
 	void ReportDestroyedIfNeeded();
 	AShooterCharacter* FindShooterCharacterForDeathCredit() const;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 };
