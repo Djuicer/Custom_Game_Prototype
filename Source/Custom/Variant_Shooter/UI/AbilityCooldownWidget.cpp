@@ -4,6 +4,7 @@
 
 #include "Variant_Shooter/Weapons/StickyCylinderExplosive.h"
 #include "Components/Image.h"
+#include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 
 UAbilityCooldownWidget::UAbilityCooldownWidget(const FObjectInitializer& ObjectInitializer)
@@ -70,6 +71,36 @@ float UAbilityCooldownWidget::GetCooldownRemaining() const
 float UAbilityCooldownWidget::GetCooldownDuration() const
 {
 	return BoundAbility ? BoundAbility->GetCooldownDuration() : 0.0f;
+}
+
+void UAbilityCooldownWidget::UpdateUltimateCharge(float ChargePercent, bool bIsReady)
+{
+	const float ClampedPercent = FMath::Clamp(ChargePercent, 0.0f, 1.0f);
+
+	if (UltimateChargeBar)
+	{
+		UltimateChargeBar->SetPercent(ClampedPercent);
+	}
+
+	if (UltimateChargeText)
+	{
+		const int32 DisplayPercent = FMath::RoundToInt(ClampedPercent * 100.0f);
+		UltimateChargeText->SetText(FText::Format(NSLOCTEXT("AbilityCooldownWidget", "UltimateChargePercent", "{0}%"), FText::AsNumber(DisplayPercent)));
+		UltimateChargeText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
+	if (UltimateReadyText)
+	{
+		UltimateReadyText->SetText(NSLOCTEXT("AbilityCooldownWidget", "UltimateReady", "READY"));
+		UltimateReadyText->SetVisibility(bIsReady ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
+
+	if (UltimateIcon)
+	{
+		UltimateIcon->SetColorAndOpacity(bIsReady ? UltimateReadyIconTint : UltimateChargingIconTint);
+	}
+
+	OnUltimateChargeUpdated(ClampedPercent, bIsReady);
 }
 
 void UAbilityCooldownWidget::HandleAbilityCooldownStarted(float Duration)
