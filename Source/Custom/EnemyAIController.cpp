@@ -1,12 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
 #include "EnemyAIController.h"
 
 #include "Enemy.h"
-#include "NavigationSystem.h"
 #include "BehaviorTree/BlackboardComponent.h"
-
 #include "Engine/DamageEvents.h"
 #include "Kismet/GameplayStatics.h"
+#include "NavigationSystem.h"
+#include "Perception/AIPerceptionComponent.h"
+#include "Perception/AISenseConfig_Sight.h"
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -32,7 +32,6 @@ AEnemyAIController::AEnemyAIController()
 
 	GetPerceptionComponent()->ConfigureSense(*SightConfiguration);
 }
-
 
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
@@ -99,7 +98,6 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 	}
 }
 
-
 void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 {
 	if (!BlackboardComponent)
@@ -116,7 +114,6 @@ void AEnemyAIController::OnSensesUpdated(const TArray<AActor*>& UpdatedActors)
 		UpdatePlayerChasePosition();
 		UpdateShieldState();
 	}
-
 }
 
 void AEnemyAIController::AttackPlayer()

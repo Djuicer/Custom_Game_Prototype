@@ -1,22 +1,15 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Enemy.h"
 
-#include "BrainComponent.h"
-#include "EnemyAIController.h"
 #include "Variant_Shooter/ShooterCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/ConstructorHelpers.h"
 
-// Sets default values
 AEnemy::AEnemy()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-	
+	PrimaryActorTick.bCanEverTick = false;
+
 	ShieldMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldMesh"));
 	ShieldMesh->SetupAttachment(GetMesh());
 	ShieldMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -33,7 +26,6 @@ void AEnemy::Ragdoll()
 {
 	ReportDestroyedIfNeeded();
 
-	// Cast<AEnemyAIController>(GetController())->BrainComponent->PauseLogic("Ragdolling");
 	SetShieldRaised(false);
 	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
 	GetMesh()->SetSimulatePhysics(true);
@@ -80,7 +72,7 @@ void AEnemy::DealDamage(float Damage)
 	{
 		return;
 	}
-	
+
 	CurrentHealth = FMath::Clamp(CurrentHealth - DamageToEnemy, 0.0f, MaxHealth);
 	if (CurrentHealth <= 0)
 	{
@@ -180,7 +172,6 @@ void AEnemy::ApplyShieldVisibility()
 	ShieldMesh->SetComponentTickEnabled(bShowShield);
 }
 
-// Called when the game starts or when spawned
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
@@ -191,18 +182,4 @@ void AEnemy::BeginPlay()
 	bShieldActive = !bShieldBroken;
 	AttachShieldMesh();
 	ApplyShieldVisibility();
-}
-
-// Called every frame
-void AEnemy::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-
-// Called to bind functionality to input
-void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
 }

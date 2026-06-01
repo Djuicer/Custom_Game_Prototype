@@ -14,7 +14,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "InputMappingContext.h"
 
 AUltimate::AUltimate()
 {
@@ -161,11 +160,7 @@ void AUltimate::SetReturnShooterCharacter(AShooterCharacter* ShooterCharacter)
 {
 	ReturnShooterCharacter = ShooterCharacter;
 
-	if (IsValid(ReturnShooterCharacter))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Ultimate stored return shooter: %s"), *ReturnShooterCharacter->GetName());
-	}
-	else
+	if (!IsValid(ReturnShooterCharacter))
 	{
 		UE_LOG(LogTemp, Error, TEXT("Ultimate failed to store return shooter."));
 	}
@@ -189,12 +184,12 @@ void AUltimate::DoLook(const FInputActionValue& Value)
 	AddControllerPitchInput(-LookAxis.Y * MouseLookSensitivity);
 }
 
-void AUltimate::DoJumpStart(const FInputActionValue& Value)
+void AUltimate::DoJumpStart(const FInputActionValue&)
 {
 	Jump();
 }
 
-void AUltimate::DoJumpEnd(const FInputActionValue& Value)
+void AUltimate::DoJumpEnd(const FInputActionValue&)
 {
 	StopJumping();
 }
@@ -224,21 +219,12 @@ void AUltimate::Detonate()
 		return;
 	}
 
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("Ultimate detonating. Will return to shooter: %s"),
-		*ReturnShooterCharacter->GetName()
-	);
-
 	const FRotator UltimateViewRotation = CachedPlayerController->GetControlRotation();
 
 	SpawnExplosionEffect();
 
-	// Damage / pull / push logic.
 	ExplosionCheck(GetActorLocation());
 
-	// Stop Ultimate immediately so it no longer moves or receives input.
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 
@@ -246,24 +232,19 @@ void AUltimate::Detonate()
 	SetActorHiddenInGame(true);
 	SetActorTickEnabled(false);
 
-	// Remove Ultimate input mapping before returning to ShooterCharacter.
 	RemoveUltimateMappingContext();
 
-	// Possess the OLD shooter first.
 	CachedPlayerController->Possess(ReturnShooterCharacter);
 	CachedPlayerController->SetControlRotation(UltimateViewRotation);
 
-	// Now restore it, because GetController() is valid again.
 	ReturnShooterCharacter->RestoreAfterUltimateMode();
 
-	// Fully reset input ignore stacks.
 	CachedPlayerController->ResetIgnoreMoveInput();
 	CachedPlayerController->ResetIgnoreLookInput();
 
 	CachedPlayerController->SetIgnoreMoveInput(false);
 	CachedPlayerController->SetIgnoreLookInput(false);
 
-	// Verify possession worked before destroying Ultimate.
 	if (CachedPlayerController->GetPawn() != ReturnShooterCharacter)
 	{
 		UE_LOG(
@@ -282,13 +263,6 @@ void AUltimate::Detonate()
 
 		return;
 	}
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("Successfully returned control to old shooter: %s"),
-		*ReturnShooterCharacter->GetName()
-	);
 
 	GetWorldTimerManager().SetTimer(
 		DestroyUltimateTimerHandle,
@@ -417,8 +391,8 @@ void AUltimate::ExplosionCheck(const FVector& ExplosionCenter)
 
 void AUltimate::ProcessHit(
 	AActor* HitActor,
-	UPrimitiveComponent* HitComp,
-	const FVector& HitLocation,
+	UPrimitiveComponent*,
+	const FVector&,
 	const FVector& HitDirection,
 	float LaunchStrength
 )
@@ -462,13 +436,6 @@ void AUltimate::DestroyUltimateAfterReturn()
 		UE_LOG(LogTemp, Error, TEXT("Refusing to destroy Ultimate because it is still possessed."));
 		return;
 	}
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("Destroying Ultimate after successful return. Current pawn: %s"),
-		*GetNameSafe(CachedPlayerController->GetPawn())
-	);
 
 	ReturnShooterCharacter = nullptr;
 	CachedPlayerController = nullptr;
