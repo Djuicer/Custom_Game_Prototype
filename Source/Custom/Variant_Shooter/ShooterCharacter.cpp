@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShooterCharacter.h"
+#include "AbilityCooldownWidget.h"
 #include "ShooterWeapon.h"
 #include "StickyCylinderExplosive.h"
 #include "Enemy.h"
@@ -17,6 +18,7 @@
 #include "Ultimate.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Blueprint/UserWidget.h"
 
 AShooterCharacter::AShooterCharacter()
 {
@@ -54,6 +56,20 @@ void AShooterCharacter::BeginPlay()
 		}
 	}
 	
+	// Create the ability cooldown widget only for the locally controlled player.
+	// Assign AbilityWidgetClass on your Shooter Character Blueprint to a Widget Blueprint derived from UAbilityCooldownWidget.
+	if (AbilityWidgetClass && IsLocallyControlled())
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			AbilityWidget = CreateWidget<UAbilityCooldownWidget>(PC, AbilityWidgetClass);
+			if (AbilityWidget)
+			{
+				AbilityWidget->AddToViewport();
+			}
+		}
+	}
+
 	// update the HUD
 	OnDamaged.Broadcast(1.0f);
 }
@@ -76,8 +92,8 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	// Press Q to switch from ShooterCharacter to Ultimate
 	PlayerInputComponent->BindKey(EKeys::Q, IE_Pressed, this, &AShooterCharacter::DoSwitchToUltimate);
 
-	// Sticky explosive fallback bindings so the ability is immediately testable without asset changes.
-	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &AShooterCharacter::DoThrowStickyExplosive);
+	// Shift ability fallback binding so the ability is immediately testable without Enhanced Input asset changes.
+	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &AShooterCharacter::HandleAbilityPressed);
 	PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &AShooterCharacter::DoDetonateStickyExplosive);
 
 	// Set up action bindings
@@ -92,7 +108,8 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		if (ThrowStickyExplosiveAction)
 		{
-			EnhancedInputComponent->BindAction(ThrowStickyExplosiveAction, ETriggerEvent::Started, this, &AShooterCharacter::DoThrowStickyExplosive);
+			// Enhanced Input version: assign an Input Action to ThrowStickyExplosiveAction in the Shooter Character Blueprint.
+			EnhancedInputComponent->BindAction(ThrowStickyExplosiveAction, ETriggerEvent::Started, this, &AShooterCharacter::HandleAbilityPressed);
 		}
 
 		if (DetonateStickyExplosiveAction)
@@ -207,6 +224,32 @@ void AShooterCharacter::DoSwitchWeapon()
 
 		// activate the new weapon
 		CurrentWeapon->ActivateWeapon();
+	}
+}
+
+void AShooterCharacter::HandleAbilityPressed()
+{
+	if (IsDead())
+	{
+		return;
+	}
+
+	// Let the UI widget be the C++ source of truth for visible cooldown state.
+	if (AbilityWidget && AbilityWidget->IsCooldownActive())
+	{
+		return;
+	}
+
+	if (!CanThrowExplosiveCylinder())
+	{
+		return;
+	}
+
+	DoThrowStickyExplosive();
+
+	if (AbilityWidget)
+	{
+		AbilityWidget->StartCooldown(ExplosiveCylinderCooldown);
 	}
 }
 
