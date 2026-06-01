@@ -2,10 +2,9 @@
 
 #include "AbilityCooldownWidget.h"
 
+#include "Variant_Shooter/Weapons/StickyCylinderExplosive.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "Engine/World.h"
-#include "TimerManager.h"
 
 UAbilityCooldownWidget::UAbilityCooldownWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -15,104 +14,80 @@ UAbilityCooldownWidget::UAbilityCooldownWidget(const FObjectInitializer& ObjectI
 void UAbilityCooldownWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	ApplyReadyVisuals();
+	RefreshFromAbility();
 }
 
 void UAbilityCooldownWidget::NativeDestruct()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(CooldownTimerHandle);
-	}
-
+	UnbindFromAbility();
 	Super::NativeDestruct();
 }
 
-bool UAbilityCooldownWidget::StartCooldown(float NewCooldownDuration)
+void UAbilityCooldownWidget::BindToAbility(AStickyCylinderExplosive* Ability)
 {
-	if (bIsCooldownActive || NewCooldownDuration <= 0.0f)
+	if (BoundAbility == Ability)
 	{
-		return false;
+		RefreshFromAbility();
+		return;
 	}
 
-	UWorld* World = GetWorld();
-	if (!World)
+	UnbindFromAbility();
+	BoundAbility = Ability;
+
+	if (BoundAbility)
 	{
-		return false;
+		BoundAbility->OnCooldownStarted.AddDynamic(this, &UAbilityCooldownWidget::HandleAbilityCooldownStarted);
+		BoundAbility->OnCooldownUpdated.AddDynamic(this, &UAbilityCooldownWidget::HandleAbilityCooldownUpdated);
+		BoundAbility->OnCooldownFinished.AddDynamic(this, &UAbilityCooldownWidget::HandleAbilityCooldownFinished);
 	}
 
-	bIsCooldownActive = true;
-	CooldownDuration = NewCooldownDuration;
-	CooldownRemaining = NewCooldownDuration;
-	CooldownEndTime = World->GetTimeSeconds() + NewCooldownDuration;
-
-	ApplyCooldownVisuals();
-	OnCooldownStarted(CooldownDuration);
-	OnCooldownTick(CooldownRemaining, CooldownDuration);
-
-	World->GetTimerManager().SetTimer(
-		CooldownTimerHandle,
-		this,
-		&UAbilityCooldownWidget::HandleCooldownTimerTick,
-		FMath::Max(0.01f, CooldownUpdateInterval),
-		true
-	);
-
-	return true;
+	RefreshFromAbility();
 }
 
-void UAbilityCooldownWidget::ResetCooldown()
+void UAbilityCooldownWidget::UnbindFromAbility()
 {
-	if (UWorld* World = GetWorld())
+	if (BoundAbility)
 	{
-		World->GetTimerManager().ClearTimer(CooldownTimerHandle);
+		BoundAbility->OnCooldownStarted.RemoveDynamic(this, &UAbilityCooldownWidget::HandleAbilityCooldownStarted);
+		BoundAbility->OnCooldownUpdated.RemoveDynamic(this, &UAbilityCooldownWidget::HandleAbilityCooldownUpdated);
+		BoundAbility->OnCooldownFinished.RemoveDynamic(this, &UAbilityCooldownWidget::HandleAbilityCooldownFinished);
+		BoundAbility = nullptr;
 	}
 
-	bIsCooldownActive = false;
-	CooldownDuration = 0.0f;
-	CooldownRemaining = 0.0f;
-	CooldownEndTime = 0.0f;
 	ApplyReadyVisuals();
 }
 
-void UAbilityCooldownWidget::HandleCooldownTimerTick()
+bool UAbilityCooldownWidget::IsCooldownActive() const
 {
-	if (!bIsCooldownActive)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		FinishCooldown();
-		return;
-	}
-
-	CooldownRemaining = FMath::Max(0.0f, CooldownEndTime - World->GetTimeSeconds());
-
-	if (CooldownRemaining <= 0.0f)
-	{
-		FinishCooldown();
-		return;
-	}
-
-	ApplyCooldownVisuals();
-	OnCooldownTick(CooldownRemaining, CooldownDuration);
-
+	return BoundAbility && BoundAbility->IsOnCooldown();
 }
 
-void UAbilityCooldownWidget::FinishCooldown()
+float UAbilityCooldownWidget::GetCooldownRemaining() const
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(CooldownTimerHandle);
-	}
+	return BoundAbility ? BoundAbility->GetCooldownRemaining() : 0.0f;
+}
 
-	bIsCooldownActive = false;
-	CooldownDuration = 0.0f;
-	CooldownRemaining = 0.0f;
-	CooldownEndTime = 0.0f;
+float UAbilityCooldownWidget::GetCooldownDuration() const
+{
+	return BoundAbility ? BoundAbility->GetCooldownDuration() : 0.0f;
+}
+
+void UAbilityCooldownWidget::HandleAbilityCooldownStarted(float Duration)
+{
+	const float Remaining = BoundAbility ? BoundAbility->GetCooldownRemaining() : Duration;
+	const float Percent = BoundAbility ? BoundAbility->GetCooldownPercent() : 1.0f;
+	ApplyCooldownVisuals(Remaining, Duration, Percent);
+	OnCooldownStarted(Duration);
+}
+
+void UAbilityCooldownWidget::HandleAbilityCooldownUpdated(float Remaining, float Duration, float Percent)
+{
+	ApplyCooldownVisuals(Remaining, Duration, Percent);
+	OnCooldownTick(Remaining, Duration, Percent);
+}
+
+void UAbilityCooldownWidget::HandleAbilityCooldownFinished()
+{
 	ApplyReadyVisuals();
 	OnCooldownFinished();
 }
@@ -127,24 +102,42 @@ void UAbilityCooldownWidget::ApplyReadyVisuals()
 	ClearCooldownText();
 }
 
-void UAbilityCooldownWidget::ApplyCooldownVisuals()
+void UAbilityCooldownWidget::ApplyCooldownVisuals(float Remaining, float Duration, float Percent)
 {
+	(void)Duration;
+	(void)Percent;
+
 	if (AbilityIcon)
 	{
 		AbilityIcon->SetColorAndOpacity(CooldownIconTint);
 	}
 
-	UpdateCooldownText();
+	UpdateCooldownText(Remaining);
 }
 
-void UAbilityCooldownWidget::UpdateCooldownText() const
+void UAbilityCooldownWidget::RefreshFromAbility()
+{
+	if (BoundAbility && BoundAbility->IsOnCooldown())
+	{
+		ApplyCooldownVisuals(
+			BoundAbility->GetCooldownRemaining(),
+			BoundAbility->GetCooldownDuration(),
+			BoundAbility->GetCooldownPercent()
+		);
+		return;
+	}
+
+	ApplyReadyVisuals();
+}
+
+void UAbilityCooldownWidget::UpdateCooldownText(float Remaining) const
 {
 	if (!CooldownText)
 	{
 		return;
 	}
 
-	const int32 DisplaySeconds = FMath::CeilToInt(CooldownRemaining);
+	const int32 DisplaySeconds = FMath::CeilToInt(Remaining);
 	CooldownText->SetText(FText::AsNumber(DisplaySeconds));
 	CooldownText->SetVisibility(ESlateVisibility::HitTestInvisible);
 }

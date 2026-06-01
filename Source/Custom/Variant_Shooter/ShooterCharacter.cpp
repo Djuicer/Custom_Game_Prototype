@@ -3,7 +3,7 @@
 #include "ShooterCharacter.h"
 #include "AbilityCooldownWidget.h"
 #include "ShooterWeapon.h"
-#include "StickyCylinderExplosive.h"
+#include "Variant_Shooter/Weapons/StickyCylinderExplosive.h"
 #include "Enemy.h"
 #include "Variant_Shooter/AI/ShooterNPC.h"
 #include "EnhancedInputComponent.h"
@@ -56,6 +56,34 @@ void AShooterCharacter::BeginPlay()
 		}
 	}
 	
+	// Create the StickyCylinderExplosive ability instance that owns Shift activation and cooldown state.
+	if (!StickyCylinderExplosiveAbility && GetWorld())
+	{
+		TSubclassOf<AStickyCylinderExplosive> AbilityClass = StickyExplosiveClass;
+		if (!AbilityClass)
+		{
+			AbilityClass = AStickyCylinderExplosive::StaticClass();
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		StickyCylinderExplosiveAbility = GetWorld()->SpawnActor<AStickyCylinderExplosive>(
+			AbilityClass,
+			GetActorLocation(),
+			GetActorRotation(),
+			SpawnParams
+		);
+
+		if (StickyCylinderExplosiveAbility)
+		{
+			StickyCylinderExplosiveAbility->SetActorHiddenInGame(true);
+			StickyCylinderExplosiveAbility->SetActorEnableCollision(false);
+		}
+	}
+
 	// Create the ability cooldown widget only for the locally controlled player.
 	// Assign AbilityWidgetClass on your Shooter Character Blueprint to a Widget Blueprint derived from UAbilityCooldownWidget.
 	if (AbilityWidgetClass && IsLocallyControlled())
@@ -66,6 +94,7 @@ void AShooterCharacter::BeginPlay()
 			if (AbilityWidget)
 			{
 				AbilityWidget->AddToViewport();
+				AbilityWidget->BindToAbility(StickyCylinderExplosiveAbility);
 			}
 		}
 	}
@@ -76,10 +105,24 @@ void AShooterCharacter::BeginPlay()
 
 void AShooterCharacter::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
-	Super::EndPlay(EndPlayReason);
-
 	// clear the respawn timer
-	GetWorld()->GetTimerManager().ClearTimer(RespawnTimer);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RespawnTimer);
+	}
+
+	if (AbilityWidget)
+	{
+		AbilityWidget->UnbindFromAbility();
+	}
+
+	if (StickyCylinderExplosiveAbility)
+	{
+		StickyCylinderExplosiveAbility->Destroy();
+		StickyCylinderExplosiveAbility = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -229,149 +272,42 @@ void AShooterCharacter::DoSwitchWeapon()
 
 void AShooterCharacter::HandleAbilityPressed()
 {
-	if (IsDead())
+	if (IsDead() || !StickyCylinderExplosiveAbility)
 	{
 		return;
 	}
 
-	// Let the UI widget be the C++ source of truth for visible cooldown state.
-	if (AbilityWidget && AbilityWidget->IsCooldownActive())
-	{
-		return;
-	}
-
-	if (!CanThrowExplosiveCylinder())
-	{
-		return;
-	}
-
-	DoThrowStickyExplosive();
-
-	if (AbilityWidget)
-	{
-		AbilityWidget->StartCooldown(ExplosiveCylinderCooldown);
-	}
+	StickyCylinderExplosiveAbility->ActivateAbility();
 }
 
 void AShooterCharacter::DoThrowStickyExplosive()
 {
-	if (IsDead() || !GetWorld())
+	if (IsDead() || !StickyCylinderExplosiveAbility)
 	{
 		return;
 	}
 
-	if (!CanThrowExplosiveCylinder())
-	{
-		UE_LOG(
-			LogTemp,
-			Verbose,
-			TEXT("Explosive Cylinder throw blocked by cooldown. Remaining: %.2fs"),
-			GetExplosiveCylinderCooldownRemaining()
-		);
-		return;
-	}
-
-	const TArray<TObjectPtr<AStickyCylinderExplosive>> StickyExplosivesToDestroy = ActiveStickyExplosives;
-	for (AStickyCylinderExplosive* StickyExplosive : StickyExplosivesToDestroy)
-	{
-		if (IsValid(StickyExplosive))
-		{
-			StickyExplosive->Destroy();
-		}
-	}
-	ActiveStickyExplosives.Reset();
-	ActiveStickyExplosive = nullptr;
-
-	TSubclassOf<AStickyCylinderExplosive> ExplosiveClass = StickyExplosiveClass;
-	if (!ExplosiveClass)
-	{
-		ExplosiveClass = AStickyCylinderExplosive::StaticClass();
-	}
-
-	const int32 CylinderCount = DestroyedEnemyCount >= 10 ? 5 : (DestroyedEnemyCount >= 5 ? 3 : 1);
-	const UCameraComponent* FirstPersonCamera = GetFirstPersonCameraComponent();
-	const FRotator BaseRotation = FirstPersonCamera ? FirstPersonCamera->GetComponentRotation() : GetControlRotation();
-	const FVector BaseLocation = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation();
-	const FVector RightVector = BaseRotation.RotateVector(FVector::RightVector);
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.Instigator = this;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	for (int32 CylinderIndex = 0; CylinderIndex < CylinderCount; ++CylinderIndex)
-	{
-		const float SpreadStep = static_cast<float>(CylinderIndex) - (static_cast<float>(CylinderCount - 1) * 0.5f);
-		const float AngleOffset = SpreadStep * CylinderSpreadAngle;
-		const FRotator SpreadRotation = BaseRotation + FRotator(0.0f, AngleOffset, 0.0f);
-		const FVector SpreadDirection = SpreadRotation.Vector();
-		const FVector SpawnLocation = BaseLocation
-			+ SpreadDirection * StickyExplosiveSpawnDistance
-			+ RightVector * (SpreadStep * CylinderSpawnSideOffset);
-
-		AStickyCylinderExplosive* SpawnedExplosive = GetWorld()->SpawnActor<AStickyCylinderExplosive>(
-			ExplosiveClass,
-			SpawnLocation,
-			SpreadRotation,
-			SpawnParams
-		);
-
-		if (SpawnedExplosive)
-		{
-			SpawnedExplosive->OnDestroyed.AddDynamic(this, &AShooterCharacter::HandleActiveStickyExplosiveDestroyed);
-			SpawnedExplosive->LaunchInDirection(SpreadDirection);
-			ActiveStickyExplosives.Add(SpawnedExplosive);
-			ActiveStickyExplosive = SpawnedExplosive;
-		}
-	}
-
-	if (!ActiveStickyExplosives.IsEmpty())
-	{
-		NextExplosiveCylinderThrowTime = GetWorld()->GetTimeSeconds() + ExplosiveCylinderCooldown;
-	}
+	StickyCylinderExplosiveAbility->ActivateAbility();
 }
 
 void AShooterCharacter::DoDetonateStickyExplosive()
 {
-	if (IsDead())
+	if (IsDead() || !StickyCylinderExplosiveAbility)
 	{
 		return;
 	}
 
-	const TArray<TObjectPtr<AStickyCylinderExplosive>> StickyExplosivesToDetonate = ActiveStickyExplosives;
-	for (AStickyCylinderExplosive* StickyExplosive : StickyExplosivesToDetonate)
-	{
-		if (IsValid(StickyExplosive))
-		{
-			StickyExplosive->RequestDetonation();
-		}
-	}
-}
-
-void AShooterCharacter::HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor)
-{
-	ActiveStickyExplosives.Remove(Cast<AStickyCylinderExplosive>(DestroyedActor));
-
-	if (DestroyedActor == ActiveStickyExplosive)
-	{
-		ActiveStickyExplosive = ActiveStickyExplosives.IsEmpty() ? nullptr : ActiveStickyExplosives.Last();
-	}
+	StickyCylinderExplosiveAbility->DetonateActiveExplosives();
 }
 
 bool AShooterCharacter::CanThrowExplosiveCylinder() const
 {
-	return GetExplosiveCylinderCooldownRemaining() <= 0.0f;
+	return StickyCylinderExplosiveAbility && StickyCylinderExplosiveAbility->CanActivateAbility();
 }
 
 float AShooterCharacter::GetExplosiveCylinderCooldownRemaining() const
 {
-	const UWorld* World = GetWorld();
-	if (!World)
-	{
-		return 0.0f;
-	}
-
-	return FMath::Max(0.0f, NextExplosiveCylinderThrowTime - World->GetTimeSeconds());
+	return StickyCylinderExplosiveAbility ? StickyCylinderExplosiveAbility->GetCooldownRemaining() : 0.0f;
 }
 
 void AShooterCharacter::RegisterDestroyedEnemy(AActor* DestroyedEnemy)

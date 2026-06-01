@@ -6,15 +6,17 @@
 #include "Blueprint/UserWidget.h"
 #include "AbilityCooldownWidget.generated.h"
 
+class AStickyCylinderExplosive;
 class UImage;
 class UTextBlock;
 
 /**
- * Blueprint-friendly base widget for a square ability icon with cooldown logic.
+ * Blueprint-friendly base widget for a square ability icon bound to StickyCylinderExplosive cooldown state.
  *
  * Create a Widget Blueprint derived from this class, design the layout in UMG,
  * then optionally name an Image widget "AbilityIcon" and a TextBlock widget
- * "CooldownText" to bind them automatically.
+ * "CooldownText" to bind them automatically. Gameplay cooldowns are owned by
+ * the ability; this widget only represents ability state.
  */
 UCLASS()
 class CUSTOM_API UAbilityCooldownWidget : public UUserWidget
@@ -24,25 +26,29 @@ class CUSTOM_API UAbilityCooldownWidget : public UUserWidget
 public:
 	UAbilityCooldownWidget(const FObjectInitializer& ObjectInitializer);
 
-	/** Starts the cooldown unless it is already active. Returns true if a new cooldown began. */
+	/** Binds this widget to an ability instance and immediately refreshes visuals from its state. */
 	UFUNCTION(BlueprintCallable, Category="Ability Cooldown")
-	bool StartCooldown(float CooldownDuration);
+	void BindToAbility(AStickyCylinderExplosive* Ability);
 
-	/** Immediately cancels any active cooldown and returns the widget to the ready state. */
+	/** Clears the current ability binding and returns visuals to ready. */
 	UFUNCTION(BlueprintCallable, Category="Ability Cooldown")
-	void ResetCooldown();
+	void UnbindFromAbility();
 
-	/** Returns true while the ability is cooling down. */
+	/** Returns the ability instance driving this widget. */
 	UFUNCTION(BlueprintPure, Category="Ability Cooldown")
-	bool IsCooldownActive() const { return bIsCooldownActive; }
+	AStickyCylinderExplosive* GetBoundAbility() const { return BoundAbility; }
 
-	/** Remaining cooldown seconds, or 0 when ready. */
+	/** Returns true while the bound ability is cooling down. */
 	UFUNCTION(BlueprintPure, Category="Ability Cooldown")
-	float GetCooldownRemaining() const { return CooldownRemaining; }
+	bool IsCooldownActive() const;
 
-	/** Original cooldown duration for the current cooldown, or 0 when ready. */
+	/** Remaining cooldown seconds from the bound ability, or 0 when ready. */
 	UFUNCTION(BlueprintPure, Category="Ability Cooldown")
-	float GetCooldownDuration() const { return CooldownDuration; }
+	float GetCooldownRemaining() const;
+
+	/** Configured cooldown duration from the bound ability, or 0 if unbound. */
+	UFUNCTION(BlueprintPure, Category="Ability Cooldown")
+	float GetCooldownDuration() const;
 
 protected:
 	virtual void NativeConstruct() override;
@@ -64,41 +70,34 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ability Cooldown|Style")
 	FLinearColor CooldownIconTint = FLinearColor(0.25f, 0.25f, 0.25f, 1.0f);
 
-	/** How often the countdown text and Blueprint tick event are updated. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Ability Cooldown|Timing", meta=(ClampMin="0.01", Units="s"))
-	float CooldownUpdateInterval = 0.05f;
-
-	/** Called when a cooldown starts so Blueprint can customize animations or styling. */
+	/** Called when the bound ability starts cooldown so Blueprint can customize animations or styling. */
 	UFUNCTION(BlueprintImplementableEvent, Category="Ability Cooldown")
 	void OnCooldownStarted(float Duration);
 
-	/** Called every cooldown update so Blueprint can drive progress materials, animations, etc. */
+	/** Called every bound ability cooldown update so Blueprint can drive progress materials, animations, etc. */
 	UFUNCTION(BlueprintImplementableEvent, Category="Ability Cooldown")
-	void OnCooldownTick(float Remaining, float Duration);
+	void OnCooldownTick(float Remaining, float Duration, float Percent);
 
-	/** Called when the cooldown reaches zero. */
+	/** Called when the bound ability cooldown reaches zero. */
 	UFUNCTION(BlueprintImplementableEvent, Category="Ability Cooldown")
 	void OnCooldownFinished();
 
 private:
-	void HandleCooldownTimerTick();
-	void FinishCooldown();
+	UFUNCTION()
+	void HandleAbilityCooldownStarted(float Duration);
+
+	UFUNCTION()
+	void HandleAbilityCooldownUpdated(float Remaining, float Duration, float Percent);
+
+	UFUNCTION()
+	void HandleAbilityCooldownFinished();
+
 	void ApplyReadyVisuals();
-	void ApplyCooldownVisuals();
-	void UpdateCooldownText() const;
+	void ApplyCooldownVisuals(float Remaining, float Duration, float Percent);
+	void RefreshFromAbility();
+	void UpdateCooldownText(float Remaining) const;
 	void ClearCooldownText() const;
 
 	UPROPERTY(Transient)
-	bool bIsCooldownActive = false;
-
-	UPROPERTY(Transient)
-	float CooldownDuration = 0.0f;
-
-	UPROPERTY(Transient)
-	float CooldownRemaining = 0.0f;
-
-	UPROPERTY(Transient)
-	float CooldownEndTime = 0.0f;
-
-	FTimerHandle CooldownTimerHandle;
+	TObjectPtr<AStickyCylinderExplosive> BoundAbility;
 };
