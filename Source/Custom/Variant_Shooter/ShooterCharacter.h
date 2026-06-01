@@ -103,36 +103,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="UI")
 	TObjectPtr<UAbilityCooldownWidget> AbilityWidget;
 
-	/** Sticky explosive class to throw. Uses the native cylinder explosive if left unset. */
+	/** Sticky explosive ability class to instantiate. Uses the native cylinder explosive if left unset. */
 	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive")
 	TSubclassOf<AStickyCylinderExplosive> StickyExplosiveClass;
 
-	/** Last active sticky explosive, kept for Blueprint compatibility. Throwing another replaces active cylinders. */
-	UPROPERTY()
-	TObjectPtr<AStickyCylinderExplosive> ActiveStickyExplosive;
+	/** Runtime ability instance that owns activation and cooldown state for Shift. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Sticky Explosive")
+	TObjectPtr<AStickyCylinderExplosive> StickyCylinderExplosiveAbility;
 
-	/** Active sticky explosives from the current throw. */
-	UPROPERTY()
-	TArray<TObjectPtr<AStickyCylinderExplosive>> ActiveStickyExplosives;
-
-	/** Distance in front of the first-person camera used to spawn the sticky explosive. */
-	UPROPERTY(EditDefaultsOnly, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
-	float StickyExplosiveSpawnDistance = 100.0f;
-
-	/** Yaw angle between each sticky cylinder in a multi-throw fan. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "deg"))
-	float CylinderSpreadAngle = 10.0f;
-
-	/** Sideways spacing between each sticky cylinder spawn point in a multi-throw. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "cm"))
-	float CylinderSpawnSideOffset = 18.0f;
-
-	/** Seconds before another sticky cylinder explosive can be thrown. Cooldown starts when a throw succeeds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sticky Explosive", meta = (ClampMin = 0.0, Units = "s"))
-	float ExplosiveCylinderCooldown = 3.0f;
-
-	/** World time when the next sticky cylinder explosive throw is allowed. */
-	float NextExplosiveCylinderThrowTime = 0.0f;
 
 	/** Lifetime number of enemy actors that have reported death/destruction to this player. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ultimate")
@@ -214,21 +192,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
 
-	/** Handles the Shift ability input and starts the UI cooldown when the ability is accepted. */
+	/** Handles the Shift ability input by activating the StickyCylinderExplosive ability. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void HandleAbilityPressed();
 
-	/** Throws or replaces the active sticky cylinder explosive. */
+	/** Activates the StickyCylinderExplosive ability. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoThrowStickyExplosive();
 
-	/** Requests detonation for the active sticky cylinder explosive. */
+	/** Requests detonation for active explosives owned by the StickyCylinderExplosive ability. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoDetonateStickyExplosive();
-
-	/** Clears the active sticky explosive reference when it detonates or is otherwise destroyed. */
-	UFUNCTION()
-	void HandleActiveStickyExplosiveDestroyed(AActor* DestroyedActor);
 
 	/** Returns true when Shift can throw another explosive cylinder. */
 	UFUNCTION(BlueprintPure, Category="Sticky Explosive")
